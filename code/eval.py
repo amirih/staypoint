@@ -2,8 +2,8 @@
 import pandas
 
 
-def get_score(ground_truth_df, calculated_df, r=0.001):
-
+def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
+    t = pandas.Timedelta(minutes=t)
     common_columns = ['agent_id','latitude','longitude','arrive_time','leave_time']
     gt = ground_truth_df[common_columns].copy()
     calc = calculated_df[common_columns].copy()
@@ -26,8 +26,8 @@ def get_score(ground_truth_df, calculated_df, r=0.001):
             (calc['agent_id'] == agent_id) &
             (calc['latitude'].between(lat - r, lat + r)) &
             (calc['longitude'].between(lon - r, lon + r)) &
-            (calc['arrive_time'] <= leave_time) &
-            (calc['leave_time'] >= arrive_time)
+            (calc['arrive_time'].between(arrive_time - t, arrive_time + t)) &
+            (calc['leave_time'].between(leave_time - t, leave_time + t))
         ]
         if not matches.empty:
             gt.at[idx, 'matched'] = True
