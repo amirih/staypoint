@@ -11,7 +11,7 @@ def getDistance(lon1, lat1, lon2, lat2):
     return 6371000 * c  # meters
 
 def get_stay_points(df, distThres=200, timeThres=20*60):
-    required = {"agent_id", "latitude", "longitude", "time"}
+    required = {"agent_id", "n_lat", "n_lon", "time"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {sorted(missing)}")
@@ -19,7 +19,9 @@ def get_stay_points(df, distThres=200, timeThres=20*60):
     d = df.copy()
 
     d["time"] = pd.to_datetime(d["time"], errors="coerce")
-    d = d.dropna(subset=["time", "latitude", "longitude", "agent_id"])
+    d = d.dropna(subset=["time", "n_lat", "n_lon", "agent_id"])
+    d = d.drop(columns=["latitude", "longitude"], errors="ignore")
+    d = d.rename(columns={"n_lat": "latitude", "n_lon": "longitude"})
     d = d.sort_values(["agent_id", "time"]).reset_index(drop=True)
 
     out_rows = []
