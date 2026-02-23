@@ -1,5 +1,6 @@
 
 import pandas
+from utils import print_time as print
 
 
 def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
@@ -14,6 +15,7 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     calc['leave_time'] = pandas.to_datetime(calc['leave_time'])
 
     # score how many stay points are correctly identified
+    print("Calculating recall score...")
     gt['matched'] = False
     for idx, row in gt.iterrows():
         agent_id = row['agent_id']
@@ -34,6 +36,7 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     recall_score = gt['matched'].mean()
 
     # score how many identified stay points are in GT
+    print("Calculating precision score...")
     calc['matched'] = False
     for idx, row in calc.iterrows():
         agent_id = row['agent_id']

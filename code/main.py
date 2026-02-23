@@ -25,6 +25,7 @@ def evaluate():
     gt_df = parquet.read_table("data/v1/ground_truth.parquet").to_pandas()
     gt_df.rename(columns={'startTime': 'arrive_time', 'endTime': 'leave_time'}, inplace=True)
     calc_df = pandas.read_csv("data/v1/m1/sp1.csv")
+    print("Calculating evaluation score...")
     score = eval_utils.get_score(gt_df, calc_df)
     print(f"Evaluation Score: {score:.4f}")
 
