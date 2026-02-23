@@ -1,3 +1,11 @@
+
+# Stay Point Detection method 1: 
+# implementation of algorithm in 
+# [1] Q. Li, Y. Zheng, X. Xie, Y. Chen, W. Liu, and W.-Y. Ma, "Mining user similarity based on location history", in Proceedings of the 16th ACM SIGSPATIAL international conference on Advances in geographic information systems, New York, NY, USA, 2008, pp. 34:1--34:10.
+
+# Source: https://gist.github.com/RustingSword/5215046
+# Adapted to fit the input data format and evaluation requirements of this project by Hossein Amiri
+
 import pandas as pd
 from math import radians, cos, sin, asin, sqrt
 from utils import print_time as print
