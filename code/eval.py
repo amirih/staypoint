@@ -31,7 +31,29 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
         ]
         if not matches.empty:
             gt.at[idx, 'matched'] = True
-    score = gt['matched'].mean()
+    recall_score = gt['matched'].mean()
+
+    # score how many identified stay points are in GT
+    calc['matched'] = False
+    for idx, row in calc.iterrows():
+        agent_id = row['agent_id']
+        lat = row['latitude']
+        lon = row['longitude']
+        arrive_time = row['arrive_time']
+        leave_time = row['leave_time']
+
+        matches = gt[
+            (gt['agent_id'] == agent_id) &
+            (gt['latitude'].between(lat - r, lat + r)) &
+            (gt['longitude'].between(lon - r, lon + r)) &
+            (gt['arrive_time'].between(arrive_time - t, arrive_time + t)) &
+            (gt['leave_time'].between(leave_time - t, leave_time + t))
+        ]
+        if not matches.empty:
+            calc.at[idx, 'matched'] = True
+    precision_score = calc['matched'].mean()
+
+    score = (recall_score+precision_score)/2
     return score
 
 
