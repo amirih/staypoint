@@ -17,3 +17,11 @@ Also renamed these columns in the code from trajectory.parquet
 
 - n_lon -> longitude
 - n_lat -> latitude
+
+# Leader Board
+
+| Rank | Team Name  | F1 Score           |
+| ---- | ---------- | ------------------ |
+| 1    | BaseLine 1 | 0.8206979896924229 |
+| 2    | Baseline 2 | 0.7168635343899474 |
+| 3    | Team A     | 0.7118115823982403 |
