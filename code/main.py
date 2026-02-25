@@ -1,6 +1,6 @@
 import pyarrow.parquet as parquet
 import pandas
-import approaches.m1 as m1
+import approaches.b2 as b2
 import eval as eval_utils
 import os
 from utils import print_time as print
@@ -10,19 +10,19 @@ def get_input_data(data_path = "data/v1/trajectory.parquet"):
     df = parquet.read_table(data_path).to_pandas()
     return df
 
-def save_output_data(df, file_name = "stay_points.csv",output_path = "data/v1/m1/sp1.csv"):
+def save_output_data(df, file_name = "stay_points.csv",output_path = "data/v1/b2/sp1.csv"):
     output_dir = os.path.dirname(output_path)
     os.makedirs(output_dir, exist_ok=True)
     df.to_csv(output_path, index=False)
 
         
-def calculate_stay_points(output_path = "data/v1/m1/sp2.csv"):
+def calculate_stay_points(output_path = "data/v1/b2/sp2.csv"):
     df = get_input_data()
-    sdf = m1.get_stay_points(df)
+    sdf = b2.get_stay_points(df)
     save_output_data(sdf,output_path=output_path)
     print(sdf.head())
 
-def evaluate(output_path = "data/v1/m1/sp2.csv"):
+def evaluate(output_path = "data/v1/b2/sp2.csv"):
     output_dir = os.path.dirname(output_path)
     file_name = os.path.basename(output_path)
     gt_df = parquet.read_table("data/v1/ground_truth.parquet").to_pandas()
@@ -34,6 +34,6 @@ def evaluate(output_path = "data/v1/m1/sp2.csv"):
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
-    output_path="data/v1/m1/sp1.csv"
-    # calculate_stay_points(output_path=output_path)
+    output_path="data/v1/b2/sp2.csv"
+    calculate_stay_points(output_path=output_path)
     evaluate(output_path=output_path)
