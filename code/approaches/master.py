@@ -1,6 +1,7 @@
 
 
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 import pandas as pd
 
 def get_stay_points(func=None, df=None, **kwargs):
@@ -27,8 +28,9 @@ def get_stay_points(func=None, df=None, **kwargs):
 
     out_rows = []
     print(f"Processing {func.__name__} for {len(groups)} agents...")
+    func_with_params = partial(func, **kwargs) 
     with ProcessPoolExecutor() as ex:
-        for result in ex.map(func, groups, **kwargs):
+        for result in ex.map(func_with_params, groups):
             out_rows.extend(result)
 
     return pd.DataFrame(

@@ -19,10 +19,10 @@ def save_output_data(df, file_name = "stay_points.csv",output_path = "data/v1/b2
     df.to_csv(output_path, index=False)
 
         
-def calculate_stay_points(func=None,output_path = "data/v1/b2/sp2.csv"):
+def calculate_stay_points(func=None,output_path = "data/v1/b2/sp2.csv", **kwargs):
     df = get_input_data()
-    sdf = master.get_stay_points(func=func, df=df)
-    save_output_data(sdf,output_path=output_path)
+    sdf = master.get_stay_points(func=func, df=df, **kwargs)
+    save_output_data(sdf, output_path=output_path)
 
 def evaluate(output_path = "data/v1/b2/sp2.csv"):
     output_dir = os.path.dirname(output_path)
@@ -39,10 +39,12 @@ if __name__ == "__main__":
     funcs=[b2, b3]
     time_thresholds = [5, 10, 15, 20]  
     distance_thresholds = [50, 100, 150, 200]
-    for func in funcs:
-        for time_thresh in time_thresholds:
-            for dist_thresh in distance_thresholds:
+    for time_thresh in time_thresholds:
+        for dist_thresh in distance_thresholds:
+            for func in funcs:
                 print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}")
                 output_path=f"data/v1/{func.__name__}/{time_thresh}_{dist_thresh}.csv"
-                calculate_stay_points(func=func,output_path=output_path)
+                calculate_stay_points(func=func,
+                                      output_path=output_path, 
+                                      time_thresh_min=time_thresh,                dist_thresh_m=dist_thresh)
                 evaluate(output_path=output_path)
