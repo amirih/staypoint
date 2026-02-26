@@ -36,12 +36,12 @@ def evaluate(output_path = "data/v1/b2/sp2.csv"):
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
-    funcs=[b2, b3]
+    funcs=[b3, b2]
     time_thresholds = [5, 10, 15, 20]  
     distance_thresholds = [50, 100, 150, 200]
-    for time_thresh in time_thresholds:
-        for dist_thresh in distance_thresholds:
-            for func in funcs:
+    for func in funcs:
+        for time_thresh in time_thresholds:
+            for dist_thresh in distance_thresholds:
                 print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}")
                 output_path=f"data/v1/{func.__name__}/{time_thresh}_{dist_thresh}.csv"
                 calculate_stay_points(func=func,
