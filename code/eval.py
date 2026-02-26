@@ -4,8 +4,9 @@
 # Hossein Amiri (hossein.amiri@emory.edu)
 # Lance Kennedy (lance.kennedy@emory.edu)
 
+from concurrent.futures import ProcessPoolExecutor
+
 import pandas
-from utils import print_time as print
 
 
 def get_score(ground_truth_df, calculated_df, r=0.001, t=5):     
@@ -21,48 +22,9 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     calc['arrive_time'] = pandas.to_datetime(calc['arrive_time'])
     calc['leave_time'] = pandas.to_datetime(calc['leave_time'])
 
-    # score how many stay points are correctly identified
-    print("Calculating recall score...")
-    gt['matched'] = False
-    for idx, row in gt.iterrows():
-        agent_id = row['agent_id']
-        lat = row['latitude']
-        lon = row['longitude']
-        arrive_time = row['arrive_time']
-        leave_time = row['leave_time']
-
-        matches = calc[
-            (calc['agent_id'] == agent_id) &
-            (calc['latitude'].between(lat - r, lat + r)) &
-            (calc['longitude'].between(lon - r, lon + r)) &
-            (calc['arrive_time'].between(arrive_time - t, arrive_time + t)) &
-            (calc['leave_time'].between(leave_time - t, leave_time + t))
-        ]
-        if not matches.empty:
-            gt.at[idx, 'matched'] = True
-    recall_score = gt['matched'].mean()
-
-    # score how many identified stay points are in GT
-    print("Calculating precision score...")
-    calc['matched'] = False
-    for idx, row in calc.iterrows():
-        agent_id = row['agent_id']
-        lat = row['latitude']
-        lon = row['longitude']
-        arrive_time = row['arrive_time']
-        leave_time = row['leave_time']
-
-        matches = gt[
-            (gt['agent_id'] == agent_id) &
-            (gt['latitude'].between(lat - r, lat + r)) &
-            (gt['longitude'].between(lon - r, lon + r)) &
-            (gt['arrive_time'].between(arrive_time - t, arrive_time + t)) &
-            (gt['leave_time'].between(leave_time - t, leave_time + t))
-        ]
-        if not matches.empty:
-            calc.at[idx, 'matched'] = True
-    precision_score = calc['matched'].mean()
-
+    with ProcessPoolExecutor() as ex:
+        precision_score = ex.submit(get_precision_score, gt, calc, r, t).result()
+        recall_score = ex.submit(get_recall_score, gt, calc, r, t).result()
     f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
     f2 = 5*(precision_score * recall_score) / (4*precision_score + recall_score + 1e-10)  # F2 score
 
@@ -75,4 +37,41 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     }
     return score
 
+def get_recall_score(gt, calc, r, t):
+    print("Calculating recall score...")
+    recall_score = get_match_score(gt, calc, r, t)
+    return recall_score
 
+def get_precision_score(gt, calc, r, t):
+    print("Calculating precision score...")
+    precision_score = get_match_score(calc, gt, r, t)
+    return precision_score
+
+def get_match_score(df1, df2, r, t, chunk_size=1000):
+    print("Calculating match score...")
+    df1['matched'] = False
+    chunks = [df1[i:i+chunk_size] for i in range(0, len(df1), chunk_size)]
+    with ProcessPoolExecutor() as ex:
+        results = list(ex.map(get_match_score_chunk, chunks, [df2]*len(chunks), [r]*len(chunks), [t]*len(chunks)))
+    df1 = pandas.concat(results)
+    match_score = df1['matched'].mean()
+    return match_score
+
+def get_match_score_chunk(df1_chunk, df2, r, t):
+    for idx, row in df1_chunk.iterrows():
+        agent_id = row['agent_id']
+        lat = row['latitude']
+        lon = row['longitude']
+        arrive_time = row['arrive_time']
+        leave_time = row['leave_time']
+
+        matches = df2[
+            (df2['agent_id'] == agent_id) &
+            (df2['latitude'].between(lat - r, lat + r)) &
+            (df2['longitude'].between(lon - r, lon + r)) &
+            (df2['arrive_time'].between(arrive_time - t, arrive_time + t)) &
+            (df2['leave_time'].between(leave_time - t, leave_time + t))
+        ]
+        if not matches.empty:
+            df1_chunk.at[idx, 'matched'] = True
+    return df1_chunk

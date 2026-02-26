@@ -6,10 +6,7 @@
 # Source: https://gist.github.com/RustingSword/5215046
 # Adapted to fit the input data format and evaluation requirements of this project by Hossein Amiri
 
-import pandas as pd
 from math import radians, cos, sin, asin, sqrt
-from utils import print_time as print
-from concurrent.futures import ProcessPoolExecutor
 
 def getDistance(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -19,39 +16,11 @@ def getDistance(lon1, lat1, lon2, lat2):
     c = 2 * asin(sqrt(a))
     return 6371000 * c  # meters
 
-def get_stay_points(df, distThres=200, timeThres=20*60):
-    required = {"agent_id", "n_lat", "n_lon", "time"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"Missing required columns: {sorted(missing)}")
-
-    d = df.copy()
-
-    d["time"] = pd.to_datetime(d["time"], errors="coerce")
-    d = d.dropna(subset=["time", "n_lat", "n_lon", "agent_id"])
-    d = d.drop(columns=["latitude", "longitude"], errors="ignore")
-    d = d.rename(columns={"n_lat": "latitude", "n_lon": "longitude"})
-    d = d.sort_values(["agent_id", "time"]).reset_index(drop=True)
-
-
-    groups = [(agent_id, g) for agent_id, g in d.groupby("agent_id", sort=False)]
-
-    out_rows = []
-
-    with ProcessPoolExecutor() as ex:
-        for result in ex.map(process_agent_group, groups, [distThres]*len(groups), [timeThres]*len(groups)):
-            out_rows.extend(result)
-
-    return pd.DataFrame(
-        out_rows,
-        columns=["agent_id", "latitude", "longitude", "arrive_time", "leave_time", "duration_s", "n_points"]
-    )
-
-
-
-def process_agent_group(agent_groups, distThres, timeThres):
+def b2(agent_groups, dist_thresh_m=200, time_thresh_min=20, debug=False):
     agent_id, g = agent_groups
-    print(f"Processing agent_id: {agent_id} with {len(g)} records")
+    time_thresh_s = float(time_thresh_min) * 60.0
+    if debug:
+        print(f"Processing agent_id: {agent_id} with {len(g)} records")
     found_points = []
     g = g.reset_index(drop=True)
     n = len(g)
@@ -71,10 +40,10 @@ def process_agent_group(agent_groups, distThres, timeThres):
                 g.at[j, "longitude"], g.at[j, "latitude"]
             )
 
-            if dist > distThres:
+            if dist > dist_thresh_m:
                 deltaT = (g.at[j, "time"] - g.at[i, "time"]).total_seconds()
 
-                if deltaT > timeThres:
+                if deltaT > time_thresh_s:
                     window = g.iloc[i:j+1]
                     found_points.append({
                         "agent_id": int(agent_id),
@@ -92,7 +61,10 @@ def process_agent_group(agent_groups, distThres, timeThres):
             j += 1
 
         i = i + 1 if not found else i + 1  # match original behavior (+1 after jump)
-
-    print(f"Found {len(found_points)} stay points for agent_id: {agent_id}")
+    if debug:
+        print(f"Found {len(found_points)} stay points for agent_id: {agent_id}")
     return found_points
+
+
+
     
