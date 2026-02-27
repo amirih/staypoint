@@ -22,8 +22,8 @@ Also renamed these columns in the code from trajectory.parquet
 
 | Rank | Team Name  | F1 Score           |
 | ---- | ---------- | ------------------ |
-| 1    | Baseline 3 | 0.968468847171057  |
+| 1    | Baseline 3 | 0.9687746641339697 |
 | 2    | Team A     | 0.9521875531303055 |
-| 3    | Team B     | 0.8540195286190208 |
-| 4    | BaseLine 1 | 0.8206979896924229 |
-| 5    | Baseline 2 | 0.7168635343899474 |
+| 3    | Baseline 2 | 0.9129668240132905 |
+| 4    | Team B     | 0.8540195286190208 |
+| 5    | BaseLine 1 | 0.8206979896924229 |

@@ -42,9 +42,13 @@ if __name__ == "__main__":
     for func in funcs:
         for time_thresh in time_thresholds:
             for dist_thresh in distance_thresholds:
-                print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}")
                 output_path=f"data/v1/{func.__name__}/{time_thresh}_{dist_thresh}.csv"
-                calculate_stay_points(func=func,
-                                      output_path=output_path, 
-                                      time_thresh_min=time_thresh,                dist_thresh_m=dist_thresh)
-                evaluate(output_path=output_path)
+                if not os.path.exists(output_path):
+                    print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}")
+                    calculate_stay_points(func=func,
+                                        output_path=output_path, 
+                                        time_thresh_min=time_thresh,                
+                                        dist_thresh_m=dist_thresh)
+                    evaluate(output_path=output_path)
+                else:
+                    print(f"Output already exists for approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}. Skipping calculation and evaluation.")
