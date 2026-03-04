@@ -25,7 +25,7 @@ Also renamed these columns in the code from trajectory.parquet
 | 1    | M8 (Supervised) | 	0.9789 Test set only (100 agents)|
 | 2    | Baseline 3 | 0.9687746641339697 |
 | 3    | M7 (HMM)   | 0.9543             |
-| 4    | Team A     | 0.9521875531303055 |
+| 4    | Lance - temporal DBSCAN    | 0.9521875531303055 |
 | 5    | Baseline 2 | 0.9129668240132905 |
-| 6    | Team B     | 0.8540195286190208 |
-| 7    | BaseLine 1 | 0.8206979896924229 |
+| 6    | Alex - temporal DBSCAN     | 0.8540195286190208 |
+| 7    | BaseLine 1 (trackintel) | 0.8206979896924229 |
