@@ -30,6 +30,13 @@ Also renamed these columns in the code from trajectory.parquet
 | 6    | Alex_Temporal_DBSCAN                                   | 0.8540195286190208                |
 | 7    | Baseline_Track_Intel                                   | 0.8206979896924229                |
 
+# Leader Board (Dataset V2: Sim1 Simulated Trajectories)
+
+| Rank | Team Name                                              | F1 Score                          |
+| ---- | ------------------------------------------------------ | --------------------------------- |
+| 1    | Lance_Temporal_DBSCAN                                  | 0.5242599940960189                |
+| 2    | Baseline_Track_Intel                                   | 0.1327184469412969                |
+
 # Methods:
 
 ### Riyang_M8_HistGradientBoosting_Classifier (Supervised)
