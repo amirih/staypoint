@@ -26,9 +26,9 @@ Also renamed these columns in the code from trajectory.parquet
 | 1    | Hossein_Copilot_ChatGPT.py                             | 0.9687746641339697                |
 | 3    | Riyang_M7_Hidden_Markov_Model                          | 0.9543                            |
 | 4    | Lance_Temporal_DBSCAN                                  | 0.9521875531303055                |
-| 5    | Baseline_Similarity_Paper.py                           | 0.9129668240132905                |
-| 6    | Alex_Temporal_DBSCAN                                   | 0.8540195286190208                |
-| 7    | Adaptive_sliding_window                                | 0.831460160768714                 |
+| 5    | Adaptive_sliding_window                                | 0.9470605843790482                |
+| 6    | Baseline_Similarity_Paper.py                           | 0.9129668240132905                |
+| 7    | Alex_Temporal_DBSCAN                                   | 0.8540195286190208                |
 | 8    | Baseline_Track_Intel                                   | 0.8206979896924229                |
 
 # Leader Board (Dataset V2: Sim1 Simulated Trajectories)
