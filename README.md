@@ -29,6 +29,7 @@ Also renamed these columns in the code from trajectory.parquet
 | 5    | Baseline_Similarity_Paper.py                           | 0.9129668240132905                |
 | 6    | Alex_Temporal_DBSCAN                                   | 0.8540195286190208                |
 | 7    | Baseline_Track_Intel                                   | 0.8206979896924229                |
+| 8    | Adaptive_sliding_window                                | TBD                               |
 
 # Leader Board (Dataset V2: Sim1 Simulated Trajectories)
 
