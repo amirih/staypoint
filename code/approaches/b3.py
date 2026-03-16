@@ -77,6 +77,7 @@ def b3_adaptive(
         # Adaptive radius for this anchor
         r_min = dist_thresh_m
         r_i = max(r_min, alpha * local_std[i])
+        
 
         j = i + 1
 
@@ -85,7 +86,6 @@ def b3_adaptive(
                 float(g.at[i, lat_col]), float(g.at[i, lon_col]),
                 float(g.at[j, lat_col]), float(g.at[j, lon_col]),
             )
-            import ipdb; ipdb.set_trace()
             if d > r_i:
                 deltaT = (
                     g.at[j - 1, time_col]
@@ -163,7 +163,7 @@ def b3(
                 float(g.at[i, lat_col]), float(g.at[i, lon_col]),
                 float(g.at[j, lat_col]), float(g.at[j, lon_col]),
             )
-            import ipdb; ipdb.set_trace()
+            
             if d > dist_thresh_m:
                 # candidate window is i .. (j-1)
                 deltaT = (g.at[j - 1, time_col] - g.at[i, time_col]).total_seconds()

@@ -23,10 +23,10 @@ Also renamed these columns in the code from trajectory.parquet
 | Rank | Team Name                                              | F1 Score                          |
 | ---- | ------------------------------------------------------ | --------------------------------- |
 | 1    | Riyang_M8_HistGradientBoosting_Classifier (Supervised) | 0.9789 Test set only (100 agents) |
-| 1    | Hossein_Copilot_ChatGPT.py                             | 0.9687746641339697                |
-| 3    | Riyang_M7_Hidden_Markov_Model                          | 0.9543                            |
-| 4    | Lance_Temporal_DBSCAN                                  | 0.9521875531303055                |
-| 5    | (B3_adaptive) Adaptive_sliding_window                  | 0.9470605843790482                |
+| 2    | Hossein_Copilot_ChatGPT.py                             | 0.9687746641339697                |
+| 3    | Mo_adaptive_sliding_window                             | 0.9646804328946181                |
+| 4    | Riyang_M7_Hidden_Markov_Model                          | 0.9543                            |
+| 5    | Lance_Temporal_DBSCAN                                  | 0.9521875531303055                |
 | 6    | Baseline_Similarity_Paper.py                           | 0.9129668240132905                |
 | 7    | Alex_Temporal_DBSCAN                                   | 0.8540195286190208                |
 | 8    | Baseline_Track_Intel                                   | 0.8206979896924229                |
@@ -55,6 +55,13 @@ Implementation in [code/approaches/b3.py](code/approaches/b3.py)
 - When such a period is found, it outputs a summarized stay point containing the mean location, arrival and leave times, duration, number of points, and the maximum radius from the center.
 
 The method follows the classic **Li et al. stay point detection approach** by expanding a window from point _i_ until the distance threshold is exceeded, then checking if the time spent within that region satisfies the temporal threshold.
+
+### Mo_adaptive_sliding_window
+
+Implementation in [code/approaches/b3.py](code/approaches/b3.py) --> Function `b3_adaptive()`
+
+- This approach is a modified approach of Hossein's baselinse approach.
+- `b3` uses a constant stay radius, while `b3_adaptive` adjusts the stay radius based on local spatial variability of the trajectory.
 
 ### Riyang_M7_Hidden_Markov_Model
 
