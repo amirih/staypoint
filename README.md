@@ -18,27 +18,20 @@ Also renamed these columns in the code from trajectory.parquet
 - n_lon -> longitude
 - n_lat -> latitude
 
-# Leader Board (Dataset V1: POL Simulated Trajectories)
+# Leader Board (Dataset V1: POL Simulated Trajectories): 
 
 | Rank | Team Name                                              | F1 Score                          |
 | ---- | ------------------------------------------------------ | --------------------------------- |
-| 1    | Riyang_M8_HistGradientBoosting_Classifier (Supervised) | 0.9789 Test set only (100 agents) |
-| 2    | Hanqi_Hyperband_Trackintel                             | 0.9767846645452792                |
-| 3    | Hossein_Copilot_ChatGPT.py                             | 0.9687746641339697                |
-| 4    | Mo_adaptive_sliding_window                             | 0.9646804328946181                |
-| 5    | Riyang_M7_Hidden_Markov_Model                          | 0.9543                            |
-| 6    | Lance_Temporal_DBSCAN                                  | 0.9521875531303055                |
-| 7    | Baseline_Similarity_Paper.py                           | 0.9129668240132905                |
-| 8    | Alex_Temporal_DBSCAN                                   | 0.8540195286190208                |
-| 9    | Baseline_Track_Intel                                   | 0.8206979896924229                |
+| 0    | Riyang_M8_HistGradientBoosting_Classifier (Supervised) | 0.0                               |
+| 0    | Hanqi_Hyperband_Trackintel                             | 0.0                               |
+| 0    | Hossein_Copilot_ChatGPT.py                             | 0.0                               |
+| 0    | Mo_adaptive_sliding_window                             | 0.0                               |
+| 0    | Riyang_M7_Hidden_Markov_Model                          | 0.0                               |
+| 0    | Lance_Temporal_DBSCAN                                  | 0.0                               |
+| 0    | Baseline_Similarity_Paper.py                           | 0.0                               |
+| 0    | Alex_Temporal_DBSCAN                                   | 0.0                               |
+| 0    | Baseline_Track_Intel                                   | 0.0                               |
 
-# Leader Board (Dataset V2: Sim1 Simulated Trajectories)
-
-| Rank | Team Name                                              | F1 Score                          |
-| ---- | ------------------------------------------------------ | --------------------------------- |
-| 1    | Lance_Temporal_DBSCAN                                  | 0.5242599940960189                |
-| 2    | Hanqi_Hyperband_Trackintel                             |  0.4578070231007754                |
-| 3    | Baseline_Track_Intel                                   | 0.1327184469412969                |
 
 # Methods:
 
