@@ -18,7 +18,7 @@ Also renamed these columns in the code from trajectory.parquet
 - n_lon -> longitude
 - n_lat -> latitude
 
-# Leader Board (Dataset V1: POL Simulated Trajectories): 
+# Leader Board (Dataset V0.0): 
 
 | Rank | Team Name                                              | F1 Score                          |
 | ---- | ------------------------------------------------------ | --------------------------------- |
