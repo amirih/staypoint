@@ -17,8 +17,10 @@ Also renamed these columns in the code from trajectory.parquet
 
 - n_lon -> longitude
 - n_lat -> latitude
+# Datasets
 
-# Leader Board (Dataset V0.0): 
+Datasets available on [https://osf.io/v8e4g/](https://osf.io/v8e4g/)
+# Leader Board (Dataset V1): 
 
 | Rank | Team Name                                              | F1 Score                          |
 | ---- | ------------------------------------------------------ | --------------------------------- |
