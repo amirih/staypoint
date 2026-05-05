@@ -9,27 +9,38 @@ from utils import print_time as print
 import utils 
 utils.install()
 
-def get_input_data(data_path = "data/v1/trajectory.parquet"):
-    df = parquet.read_table(data_path).to_pandas()
+def get_df(data_path = "data/v1/trajectory.parquet"):
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data file not found at {data_path}. Please ensure the file exists.")
+    if data_path.endswith('.parquet'):
+        df = parquet.read_table(data_path).to_pandas()
+    elif data_path.endswith('.csv'):
+        df = pandas.read_csv(data_path)
+    else:
+        raise ValueError("Unsupported file format. Please use .csv or .parquet")
     return df
 
-def save_output_data(df, file_name = "stay_points.csv",output_path = "data/v1/b2/sp1.csv"):
+def save_df(df, output_path = "data/v1/b2/sp1.csv"):
     output_dir = os.path.dirname(output_path)
     os.makedirs(output_dir, exist_ok=True)
-    df.to_csv(output_path, index=False)
-
+    if output_path.endswith('.csv'):
+        df.to_csv(output_path, index=False)
+    elif output_path.endswith('.parquet'):
+        df.to_parquet(output_path, index=False)
+    else:
+        raise ValueError("Unsupported file format. Please use .csv or .parquet")
         
-def calculate_stay_points(func=None,output_path = "data/v1/b2/sp2.csv", **kwargs):
-    df = get_input_data()
+def calculate_stay_points(func=None, input_path = "data/v1/trajectory.parquet", output_path = "data/v1/b2/sp2.csv", **kwargs):
+    df = get_df(input_path)
     sdf = master.get_stay_points(func=func, df=df, **kwargs)
-    save_output_data(sdf, output_path=output_path)
+    save_df(sdf, output_path=output_path)
 
-def evaluate(output_path = "data/v1/b2/sp2.csv"):
-    output_dir = os.path.dirname(output_path)
-    file_name = os.path.basename(output_path)
-    gt_df = parquet.read_table("data/v1/ground_truth.parquet").to_pandas()
+def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data/v1/ground_truth.parquet"):
+    output_dir = os.path.dirname(calculated_data_path)
+    file_name = os.path.basename(calculated_data_path)
+    gt_df = get_df(ground_truth_path)
     gt_df.rename(columns={'startTime': 'arrive_time', 'endTime': 'leave_time'}, inplace=True)
-    calc_df = pandas.read_csv(output_path)
+    calc_df = get_df(calculated_data_path)
     print("Calculating evaluation score...")
     score = eval_utils.get_score(gt_df, calc_df)
     utils.save_json(score, os.path.join(output_dir, f"{file_name}_score.json"))
@@ -39,16 +50,23 @@ if __name__ == "__main__":
     funcs=[b3, b2]
     time_thresholds = [5, 10, 15, 20]  
     distance_thresholds = [50, 100, 150, 200]
+    noiselevels = [0, 10, 25, 50]
+    dropoutlevels = [0, 1, 2, 3]
+    data_dir = "data/v1"
     for func in funcs:
         for time_thresh in time_thresholds:
             for dist_thresh in distance_thresholds:
-                output_path=f"data/v1/{func.__name__}/{time_thresh}_{dist_thresh}.csv"
-                if not os.path.exists(output_path):
-                    print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}")
-                    calculate_stay_points(func=func,
-                                        output_path=output_path, 
-                                        time_thresh_min=time_thresh,                
-                                        dist_thresh_m=dist_thresh)
-                    evaluate(output_path=output_path)
-                else:
-                    print(f"Output already exists for approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}. Skipping calculation and evaluation.")
+                for noiselevel in noiselevels:
+                    for dropoutlevel in dropoutlevels :
+                        id=f"nl{noiselevel}_dl{dropoutlevel}"
+                        output_path=f"{data_dir}/{id}/{func.__name__}/{time_thresh}_{dist_thresh}.parquet"
+                        if not os.path.exists(output_path):
+                            print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
+                            calculate_stay_points(func=func,
+                                                input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet",
+                                                output_path=output_path, 
+                                                time_thresh_min=time_thresh,                
+                                                dist_thresh_m=dist_thresh)
+                            evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
+                        else:
+                            print(f"Output already exists for approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}. Skipping calculation and evaluation.")
