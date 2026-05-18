@@ -31,6 +31,9 @@ def save_df(df, output_path = "data/v1/b2/sp1.csv"):
         raise ValueError("Unsupported file format. Please use .csv or .parquet")
         
 def calculate_stay_points(func=None, input_path = "data/v1/trajectory.parquet", output_path = "data/v1/b2/sp2.csv", **kwargs):
+    if os.path.exists(output_path):
+        print(f"Output already exists at {output_path}. Skipping calculation.")
+        return
     df = get_df(input_path)
     sdf = master.get_stay_points(func=func, df=df, **kwargs)
     save_df(sdf, output_path=output_path)
@@ -38,12 +41,16 @@ def calculate_stay_points(func=None, input_path = "data/v1/trajectory.parquet", 
 def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data/v1/ground_truth.parquet"):
     output_dir = os.path.dirname(calculated_data_path)
     file_name = os.path.basename(calculated_data_path)
+    json_path = f"{file_name}_score.json"
+    if os.path.exists(os.path.join(output_dir, json_path)):
+        print(f"Evaluation score already exists at {os.path.join(output_dir, json_path)}. Skipping evaluation.")
+        return
     gt_df = get_df(ground_truth_path)
     gt_df.rename(columns={'startTime': 'arrive_time', 'endTime': 'leave_time'}, inplace=True)
     calc_df = get_df(calculated_data_path)
     print("Calculating evaluation score...")
     score = eval_utils.get_score(gt_df, calc_df)
-    utils.save_json(score, os.path.join(output_dir, f"{file_name}_score.json"))
+    utils.save_json(score, os.path.join(output_dir, json_path))
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
@@ -64,16 +71,15 @@ if __name__ == "__main__":
                     for dropoutlevel in dropoutlevels :
                         id=f"nl{noiselevel}_dl{dropoutlevel}"
                         output_path=f"{data_dir}/{id}/{func.__name__}/{time_thresh}_{dist_thresh}.parquet"
-                        if not os.path.exists(output_path):
-                            print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
-                            try:
-                                calculate_stay_points(func=func,
-                                                    input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet",
-                                                    output_path=output_path, 
-                                                    time_thresh_min=time_thresh,                
-                                                    dist_thresh_m=dist_thresh)
-                                evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
-                            except Exception as e:
-                                print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}. Error: {e}")
-                        else:
-                            print(f"Output already exists for approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}. Skipping calculation and evaluation.")
+                        
+                        print(f"Approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
+                        try:
+                            calculate_stay_points(func=func,
+                                                input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet",
+                                                output_path=output_path, 
+                                                time_thresh_min=time_thresh,                
+                                                dist_thresh_m=dist_thresh)
+                            evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
+                        except Exception as e:
+                            print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}. Error: {e}")
+                       
