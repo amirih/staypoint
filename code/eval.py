@@ -23,7 +23,7 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     calc['leave_time'] = pandas.to_datetime(calc['leave_time'])
 
     with ProcessPoolExecutor() as ex:
-        time_overlap_score = ex.submit(get_time_overlap_score, gt, calc).result()
+        overlap_scores = ex.submit(get_overlap_score, gt, calc).result()
         precision_score = ex.submit(get_precision_score, gt, calc, r, t).result()
         recall_score = ex.submit(get_recall_score, gt, calc, r, t).result()
     f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
@@ -31,7 +31,9 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
 
 
     score = {
-        'time_overlap_score': float(time_overlap_score),
+        'time_overlap_score': float(overlap_scores['time_overlap']),
+        'spatial_overlap_score': float(overlap_scores['distance']),
+        'spatial_temporal_overlap_score': float(overlap_scores['spatial_temporal_overlap_score']),
         'precision': float(precision_score),
         'recall': float(recall_score),
         'f1': float(f1),
@@ -79,8 +81,8 @@ def get_match_score_chunk(df1_chunk, df2, r, t):
             df1_chunk.at[idx, 'matched'] = True
     return df1_chunk
 
-def get_time_overlap_score(gt, calc, chunk_size=1000):
-    print("Calculating time overlap score...")
+def get_overlap_score(gt, calc, chunk_size=1000):
+    print("Calculating overlap score...")
 
     gt = gt.copy()
     calc = calc.copy()
@@ -92,16 +94,21 @@ def get_time_overlap_score(gt, calc, chunk_size=1000):
 
     with ProcessPoolExecutor() as ex:
         results = list(ex.map(
-            get_time_overlap_score_chunk,
+            get_overlap_score_chunk,
             chunks,
             [calc] * len(chunks)
         ))
 
     gt = pandas.concat(results)
-    return gt["time_overlap"].mean()
+    overlap_score = {
+        'time_overlap': gt["time_overlap"].mean(),
+        'distance': gt["distance"].mean(),
+        'spatial_temporal_overlap_score': gt["score"].mean()
+    }
+    return overlap_score
 
 
-def get_time_overlap_score_chunk(gt_chunk, calc):
+def get_overlap_score_chunk(gt_chunk, calc):
     for idx, row in gt_chunk.iterrows():
         agent_id = row["agent_id"]
         arrive_time = row["arrive_time"]
@@ -127,5 +134,7 @@ def get_time_overlap_score_chunk(gt_chunk, calc):
             )
 
             gt_chunk.at[idx, "time_overlap"] = max(0, overlaps.max()) / duration
+            gt_chunk.at[idx, "distance"] = ((matches["latitude"] - row["latitude"]) ** 2 + (matches["longitude"] - row["longitude"]) ** 2).min() ** 0.5
+            gt_chunk.at[idx, "score"] = gt_chunk.at[idx, "time_overlap"] * max(0, 1 - gt_chunk.at[idx, "distance"] / 0.001)  
 
     return gt_chunk
