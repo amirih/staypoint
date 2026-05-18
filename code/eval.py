@@ -25,15 +25,15 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     with ProcessPoolExecutor() as ex:
         precision_score = ex.submit(get_precision_score, gt, calc, r, t).result()
         recall_score = ex.submit(get_recall_score, gt, calc, r, t).result()
-        time_overlap = ex.submit(get_time_overlap_score, gt, calc).result()
+        time_overlap_score = ex.submit(get_time_overlap_score, gt, calc).result()
     f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
     f2 = 5*(precision_score * recall_score) / (4*precision_score + recall_score + 1e-10)  # F2 score
 
 
     score = {
+        'time_overlap_score': float(time_overlap_score),
         'precision': float(precision_score),
         'recall': float(recall_score),
-        'time_overlap': float(time_overlap),
         'f1': float(f1),
         'f2': float(f2)
 
