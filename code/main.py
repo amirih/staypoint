@@ -48,10 +48,14 @@ def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data
 
 if __name__ == "__main__":
     funcs=[b3, b2]
-    time_thresholds = [5, 10, 15, 20]  
-    distance_thresholds = [50, 100, 150, 200]
+    time_thresholds = [100, 50, 25, 10, 5, None]
+    distance_thresholds = [500, 450, 400, 350, 300, 250, 200, 150, 100, 50, None]
     noiselevels = [0, 10, 25, 50]
+    noiselevels.reverse()
     dropoutlevels = [0, 1, 2, 3]
+    dropoutlevels.reverse()
+
+
     data_dir = "data/v1"
     for func in funcs:
         for time_thresh in time_thresholds:
@@ -62,11 +66,14 @@ if __name__ == "__main__":
                         output_path=f"{data_dir}/{id}/{func.__name__}/{time_thresh}_{dist_thresh}.parquet"
                         if not os.path.exists(output_path):
                             print(f"Running approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
-                            calculate_stay_points(func=func,
-                                                input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet",
-                                                output_path=output_path, 
-                                                time_thresh_min=time_thresh,                
-                                                dist_thresh_m=dist_thresh)
-                            evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
+                            try:
+                                calculate_stay_points(func=func,
+                                                    input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet",
+                                                    output_path=output_path, 
+                                                    time_thresh_min=time_thresh,                
+                                                    dist_thresh_m=dist_thresh)
+                                evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
+                            except Exception as e:
+                                print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}. Error: {e}")
                         else:
                             print(f"Output already exists for approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh}. Skipping calculation and evaluation.")

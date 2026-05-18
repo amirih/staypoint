@@ -25,6 +25,7 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     with ProcessPoolExecutor() as ex:
         precision_score = ex.submit(get_precision_score, gt, calc, r, t).result()
         recall_score = ex.submit(get_recall_score, gt, calc, r, t).result()
+        time_overlap = ex.submit(get_time_overlap_score, gt, calc).result()
     f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
     f2 = 5*(precision_score * recall_score) / (4*precision_score + recall_score + 1e-10)  # F2 score
 
@@ -32,8 +33,10 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
     score = {
         'precision': float(precision_score),
         'recall': float(recall_score),
+        'time_overlap': float(time_overlap),
         'f1': float(f1),
         'f2': float(f2)
+
     }
     return score
 
@@ -75,3 +78,22 @@ def get_match_score_chunk(df1_chunk, df2, r, t):
         if not matches.empty:
             df1_chunk.at[idx, 'matched'] = True
     return df1_chunk
+
+def get_time_overlap_score(gt, calc):
+    print("Calculating time overlap score...")
+    gt['duration'] = (gt['leave_time'] - gt['arrive_time']).dt.total_seconds()
+    calc['duration'] = (calc['leave_time'] - calc['arrive_time']).dt.total_seconds()
+    gt['time_overlap'] = 0
+    for idx, row in gt.iterrows():
+        agent_id = row['agent_id']
+        arrive_time = row['arrive_time']
+        leave_time = row['leave_time']
+        matches = calc[
+            (calc['agent_id'] == agent_id) &
+            (calc['arrive_time'] < leave_time) &
+            (calc['leave_time'] > arrive_time)
+        ]
+        if not matches.empty:
+            overlap = matches.apply(lambda x: max(0, min(leave_time, x['leave_time']) - max(arrive_time, x['arrive_time'])).total_seconds(), axis=1)
+            gt.at[idx, 'time_overlap'] = overlap.max() / row['duration']
+    return gt['time_overlap'].mean()

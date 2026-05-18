@@ -1,5 +1,3 @@
 *.parquet
-data/*
-!data/v1/
-data/v1/data.zip
+data/
 .history/
