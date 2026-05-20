@@ -51,7 +51,6 @@ def get_precision_score(gt, calc, r, t):
     return precision_score
 
 def get_match_score(df1, df2, r, t, chunk_size=1000):
-    print("Calculating match score...")
     df1['matched'] = False
     chunks = [df1[i:i+chunk_size] for i in range(0, len(df1), chunk_size)]
     with ProcessPoolExecutor() as ex:
