@@ -81,7 +81,14 @@ def get_match_score_chunk(df1_chunk, df2, r, t):
             df1_chunk.at[idx, 'matched'] = True
     return df1_chunk
 
-def get_overlap_score(gt, calc, chunk_size=1000):
+def get_overlap_score(gt, calc, chunk_size=1000, placeholder=True):
+    if placeholder:
+        overlap_score = {
+            'temporal_overlap_score': 0.0,
+            'spatial_overlap_score': 0.0,
+            'spatial_temporal_overlap_score': 0.0
+        }
+        return overlap_score
     print("Calculating overlap score...")
 
     gt = gt.copy()
