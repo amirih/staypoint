@@ -31,8 +31,8 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
 
 
     score = {
-        'time_overlap_score': float(overlap_scores['time_overlap']),
-        'spatial_overlap_score': float(overlap_scores['distance']),
+        'temporal_overlap_score': float(overlap_scores['temporal_overlap']),
+        'spatial_overlap_score': float(overlap_scores['spatial_overlap']),
         'spatial_temporal_overlap_score': float(overlap_scores['spatial_temporal_overlap_score']),
         'precision': float(precision_score),
         'recall': float(recall_score),
@@ -88,7 +88,7 @@ def get_overlap_score(gt, calc, chunk_size=1000):
     calc = calc.copy()
 
     gt["duration"] = (gt["leave_time"] - gt["arrive_time"]).dt.total_seconds()
-    gt["time_overlap"] = 0.0
+    gt["temporal_overlap"] = 0.0
 
     chunks = [gt[i:i + chunk_size].copy() for i in range(0, len(gt), chunk_size)]
 
@@ -101,9 +101,9 @@ def get_overlap_score(gt, calc, chunk_size=1000):
 
     gt = pandas.concat(results)
     overlap_score = {
-        'time_overlap': gt["time_overlap"].mean(),
-        'distance': gt["distance"].mean(),
-        'spatial_temporal_overlap_score': gt["score"].mean()
+        'temporal_overlap_score': gt["temporal_overlap"].mean(),
+        'spatial_overlap_score': gt["spatial_overlap"].mean(),
+        'spatial_temporal_overlap_score': gt["spatial_temporal_overlap"].mean()
     }
     return overlap_score
 
@@ -133,8 +133,8 @@ def get_overlap_score_chunk(gt_chunk, calc):
                 axis=1
             )
 
-            gt_chunk.at[idx, "time_overlap"] = max(0, overlaps.max()) / duration
-            gt_chunk.at[idx, "distance"] = ((matches["latitude"] - row["latitude"]) ** 2 + (matches["longitude"] - row["longitude"]) ** 2).min() ** 0.5
-            gt_chunk.at[idx, "score"] = gt_chunk.at[idx, "time_overlap"] * max(0, 1 - gt_chunk.at[idx, "distance"] / 0.001)  
+            gt_chunk.at[idx, "temporal_overlap"] = max(0, overlaps.max()) / duration
+            gt_chunk.at[idx, "spatial_overlap"] = ((matches["latitude"] - row["latitude"]) ** 2 + (matches["longitude"] - row["longitude"]) ** 2).min() ** 0.5
+            gt_chunk.at[idx, "spatial_temporal_overlap"] = gt_chunk.at[idx, "temporal_overlap"] * max(0, 1 - gt_chunk.at[idx, "spatial_overlap"] / 0.001)  
 
     return gt_chunk
