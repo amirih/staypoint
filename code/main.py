@@ -2,7 +2,7 @@ import pyarrow.parquet as parquet
 import pandas
 import approaches.master as master
 from approaches.b2 import b2 
-from approaches.b3 import b3 
+from approaches.b3 import b3, b3_adaptive
 import eval as eval_utils
 import os
 from utils import print_time as print
@@ -20,6 +20,18 @@ def get_df(data_path = "data/v1/trajectory.parquet"):
         raise ValueError("Unsupported file format. Please use .csv or .parquet")
     return df
 
+def get_processed_df(df):
+    required = {"agent_id", "latitude", "longitude", "time"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {sorted(missing)}")
+
+    df["time"] = pandas.to_datetime(df["time"], errors="coerce")
+    df = df.dropna(subset=["time", "latitude", "longitude", "agent_id"])
+    df = df.sort_values(["agent_id", "time"]).reset_index(drop=True)
+
+    return df
+
 def save_df(df, output_path = "data/v1/b2/sp1.csv"):
     output_dir = os.path.dirname(output_path)
     os.makedirs(output_dir, exist_ok=True)
@@ -30,12 +42,11 @@ def save_df(df, output_path = "data/v1/b2/sp1.csv"):
     else:
         raise ValueError("Unsupported file format. Please use .csv or .parquet")
         
-def calculate_stay_points(func=None, input_path = "data/v1/trajectory.parquet", output_path = "data/v1/b2/sp2.csv", **kwargs):
+def calculate_stay_points(func=None, input_df=None, output_path = "data/v1/b2/sp2.csv", **kwargs):
     if os.path.exists(output_path):
         print(f"Output already exists at {output_path}. Skipping calculation.")
         return
-    df = get_df(input_path)
-    sdf = master.get_stay_points(func=func, df=df, **kwargs)
+    sdf = master.get_stay_points(func=func, df=input_df, **kwargs)
     save_df(sdf, output_path=output_path)
 
 def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data/v1/ground_truth.parquet"):
@@ -54,13 +65,15 @@ def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
-    funcs=[b3, b2]
-    time_thresholds = [100, 50, 25, 10, 5, None]
-    distance_thresholds = [500, 450, 400, 350, 300, 250, 200, 150, 100, 50, None]
+    funcs=[b3_adaptive,b3]
+    time_thresholds = [100, 50, 25, 10, 5]
+    distance_thresholds = [200, 100, 50]
     noiselevels = [0, 10, 25, 50]
-    noiselevels.reverse()
     dropoutlevels = [0, 1, 2, 3]
-    dropoutlevels.reverse()
+    time_thresholds.reverse()
+    distance_thresholds.reverse()
+    # noiselevels.reverse()
+    # dropoutlevels.reverse()
 
 
     data_dir = "data/v1"
@@ -70,16 +83,21 @@ if __name__ == "__main__":
                 for noiselevel in noiselevels:
                     for dropoutlevel in dropoutlevels :
                         id=f"nl{noiselevel}_dl{dropoutlevel}"
-                        output_path=f"{data_dir}/{id}/{func.__name__}/{time_thresh}_{dist_thresh}.parquet"
-                        
-                        print(f"Approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
+                        input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet"
+                        input_df = get_df(input_path)
+                        input_df = get_processed_df(input_df)
+                        time_thresh_min = time_thresh
+                        dist_thresh_m = dist_thresh
+                        output_path=f"{data_dir}/{id}/{func.__name__}/{time_thresh_min}_{dist_thresh_m}.parquet"
+                        print(f"Approach: {func.__name__}, time_thresh_min: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
+                    
                         try:
                             calculate_stay_points(func=func,
-                                                input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet",
+                                                input_df=input_df,
                                                 output_path=output_path, 
-                                                time_thresh_min=time_thresh,                
-                                                dist_thresh_m=dist_thresh)
+                                                time_thresh_min=time_thresh_min,                
+                                                dist_thresh_m=dist_thresh_m)
                             evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
                         except Exception as e:
-                            print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh}, dist_thresh: {dist_thresh} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}. Error: {e}")
+                            print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}. Error: {e}")
                        

@@ -132,7 +132,7 @@ def b3(
     time_col="time",
     lat_col="latitude",
     lon_col="longitude",
-    debug=True,
+    debug=False,
 ):
     """
     Classic stay point detection (Li et al.-style):
