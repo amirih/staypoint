@@ -27,17 +27,15 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5):
         precision_score = ex.submit(get_precision_score, gt, calc, r, t).result()
         recall_score = ex.submit(get_recall_score, gt, calc, r, t).result()
     f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
-    f2 = 5*(precision_score * recall_score) / (4*precision_score + recall_score + 1e-10)  # F2 score
 
 
     score = {
-        'temporal_overlap_score': float(overlap_scores['temporal_overlap']),
-        'spatial_overlap_score': float(overlap_scores['spatial_overlap']),
-        'spatial_temporal_overlap_score': float(overlap_scores['spatial_temporal_overlap_score']),
+        'f1': float(f1),
         'precision': float(precision_score),
         'recall': float(recall_score),
-        'f1': float(f1),
-        'f2': float(f2)
+        'temporal_overlap_score': float(overlap_scores['temporal_overlap_score']),
+        'spatial_overlap_score': float(overlap_scores['spatial_overlap_score']),
+        'spatial_temporal_overlap_score': float(overlap_scores['spatial_temporal_overlap_score'])
 
     }
     return score
