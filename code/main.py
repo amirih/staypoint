@@ -59,7 +59,6 @@ def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data
     gt_df = get_df(ground_truth_path)
     gt_df.rename(columns={'startTime': 'arrive_time', 'endTime': 'leave_time'}, inplace=True)
     calc_df = get_df(calculated_data_path)
-    print("Calculating evaluation score...")
     score = eval_utils.get_score(gt_df, calc_df)
     utils.save_json(score, os.path.join(output_dir, json_path))
     print(f"Evaluation Score: {score}")
