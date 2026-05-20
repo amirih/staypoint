@@ -1,3 +1,2 @@
-*.parquet
-data/
 .history/
+data/v1/trajectories_*
