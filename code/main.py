@@ -1,8 +1,8 @@
 import pyarrow.parquet as parquet
 import pandas
 import approaches.master as master
-from approaches.b2 import b2 
-from approaches.b3 import b3, b3_adaptive
+from approaches.original_sw import sw 
+from approaches.hossein import hsw
 import eval as eval_utils
 import os
 from utils import print_time as print
@@ -20,7 +20,7 @@ def get_df(data_path = "data/v1/trajectory.parquet"):
         raise ValueError("Unsupported file format. Please use .csv or .parquet")
     return df
 
-def get_processed_df(df):
+def get_processed_trajectory_df(df):
     required = {"agent_id", "latitude", "longitude", "time"}
     missing = required - set(df.columns)
     if missing:
@@ -65,7 +65,7 @@ def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
-    funcs=[b3_adaptive,b3]
+    funcs=[sw, hsw]
     time_thresholds = [100, 50, 25, 10, 5]
     distance_thresholds = [200, 100, 50]
     noiselevels = [0, 10, 25, 50]
@@ -82,13 +82,13 @@ if __name__ == "__main__":
             for dist_thresh in distance_thresholds:
                 for noiselevel in noiselevels:
                     for dropoutlevel in dropoutlevels :
-                        id=f"nl{noiselevel}_dl{dropoutlevel}"
-                        input_path=f"{data_dir}/trajectories_noiselevel{noiselevel}_dropoutlevel{dropoutlevel}.parquet"
+                        id=f"noiselevel{noiselevel}_dropoutlevel{dropoutlevel}"
+                        input_path=f"{data_dir}/trajectories_{id}.parquet"
                         input_df = get_df(input_path)
-                        input_df = get_processed_df(input_df)
+                        input_df = get_processed_trajectory_df(input_df)
                         time_thresh_min = time_thresh
                         dist_thresh_m = dist_thresh
-                        output_path=f"{data_dir}/{id}/{func.__name__}/{time_thresh_min}_{dist_thresh_m}.parquet"
+                        output_path=f"{data_dir}/detected_staypoints_{id}/algorithm_{func.__name__}/time_threshold_{time_thresh_min}_minutes_dist_threshold_{dist_thresh_m}_meters.parquet"
                         print(f"Approach: {func.__name__}, time_thresh_min: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
                     
                         try:

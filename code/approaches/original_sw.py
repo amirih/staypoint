@@ -16,7 +16,7 @@ def getDistance(lon1, lat1, lon2, lat2):
     c = 2 * asin(sqrt(a))
     return 6371000 * c  # meters
 
-def b2(agent_groups, dist_thresh_m=200, time_thresh_min=20, debug=False):
+def sw(agent_groups, dist_thresh_m=200, time_thresh_min=20, debug=False):
     agent_id, g = agent_groups
     time_thresh_s = float(time_thresh_min) * 60.0
     if debug:
