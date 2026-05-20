@@ -64,7 +64,7 @@ def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
-    funcs=[hsw]
+    funcs=[hsw, sw]
     time_thresholds = [100, 50, 25, 10, 5]
     distance_thresholds = [200, 100, 50]
     noiselevels = [0, 10, 25, 50]
