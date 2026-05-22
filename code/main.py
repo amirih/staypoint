@@ -65,7 +65,7 @@ def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data
 
 if __name__ == "__main__":
     funcs=[hsw, sw]
-    time_thresholds = [100, 50, 25, 10, 5]
+    time_thresholds = [100, 50, 30, 25, 20, 15, 10, 5]
     distance_thresholds = [200, 100, 50]
     noiselevels = [0, 10, 25, 50]
     dropoutlevels = [0, 1, 2, 3]

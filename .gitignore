@@ -1,3 +1,10 @@
 .history/
 data/v1/trajectories_*
 .DS_Store*
+
+
+*.parquet
+*.json
+!staypoints.parquet
+!info.json
+!info.txt
