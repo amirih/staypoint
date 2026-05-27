@@ -1,41 +1,14 @@
-Please note that I renamed the following files as the input:
+# Dataset Download
 
-- naive_sps.parquet -> ground_truth.parquet
-- noised_trajectory.parquet -> trajectory.parquet
+The datasets are available at [https://osf.io/v8e4g/](https://osf.io/v8e4g/).
 
-I Also renamed these columns in the code from ground_truth.parquet
+# Project Structure
 
-- startTime -> arrive_time
-- endTime -> leave_time
+# Experimental Results
 
-Dropped the following columns in the code from trajectory.parquet
+# Environmental Setup
 
-- longitude
-- latitude
-
-Also renamed these columns in the code from trajectory.parquet
-
-- n_lon -> longitude
-- n_lat -> latitude
-# Datasets
-
-Datasets available on [https://osf.io/v8e4g/](https://osf.io/v8e4g/)
-# Leader Board (Dataset V1): 
-
-| Rank | Team Name                                              | F1 Score                          |
-| ---- | ------------------------------------------------------ | --------------------------------- |
-| 0    | Riyang_M8_HistGradientBoosting_Classifier (Supervised) | 0.0                               |
-| 0    | Hanqi_Hyperband_Trackintel                             | 0.0                               |
-| 0    | Hossein_Copilot_ChatGPT.py                             | 0.0                               |
-| 0    | Mo_adaptive_sliding_window                             | 0.0                               |
-| 0    | Riyang_M7_Hidden_Markov_Model                          | 0.0                               |
-| 0    | Lance_Temporal_DBSCAN                                  | 0.0                               |
-| 0    | Baseline_Similarity_Paper.py                           | 0.0                               |
-| 0    | Alex_Temporal_DBSCAN                                   | 0.0                               |
-| 0    | Baseline_Track_Intel                                   | 0.0                               |
-
-
-# Methods:
+# Reproducing the Results
 
 ### Hanqi_Hyperband_Trackintel
 
@@ -65,15 +38,10 @@ Implementation in [code/approaches/m8.py](code/approaches/m8.py)
 
 A supervised approach that serves as a performance ceiling. We engineer 23 features per trajectory point — including forward/backward displacement, multi-scale rolling statistics (std, mean, max over windows of 5/15/30/60 points), distance to rolling centroid, and hour of day — then train a gradient boosting classifier on 80% of agents and evaluate on the remaining 20%.
 
-### Hossein_Copilot_ChatGPT.py
+### HSW
 
-Implementation in [code/approaches/b3.py](code/approaches/b3.py)
+Implementation: [code/approaches/hsw.py](code/approaches/hsw.py)
 
-- `haversine_m` computes the great-circle distance in meters between two latitude/longitude coordinates using the Haversine formula.
-- `b3` processes time-sorted location records for each agent and identifies **stay points** where the agent remains within a spatial radius (`dist_thresh_m`, default 200 m) for at least a minimum duration (`time_thresh_min`, default 20 minutes).
-- When such a period is found, it outputs a summarized stay point containing the mean location, arrival and leave times, duration, number of points, and the maximum radius from the center.
-
-The method follows the classic **Li et al. stay point detection approach** by expanding a window from point _i_ until the distance threshold is exceeded, then checking if the time spent within that region satisfies the temporal threshold.
 
 ### Mo_adaptive_sliding_window
 
