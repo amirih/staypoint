@@ -132,6 +132,9 @@ def get_spatial_temporal_overlap_chunk(df1_chunk, df2):
 
 
 def get_spatial_temporal_score(calc, gt, chunk_size=1000):
+    gt = gt.copy()
+    calc = calc.copy()
+
     calc['temporal_IoU'] = 0.0
     calc['spatial_score'] = 0.0
     calc['spatial_temporal_score'] = 0.0
