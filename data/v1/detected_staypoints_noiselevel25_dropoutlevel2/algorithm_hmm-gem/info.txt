@@ -1,0 +1,7 @@
+run_time:
+
+Parameters:
+K=3
+min_duration=300
+self_loop=0.95
+em_iters=5
