@@ -43,12 +43,12 @@ A supervised approach that serves as a performance ceiling. We engineer 23 featu
 Implementation: [code/approaches/hsw.py](code/approaches/hsw.py)
 
 
-### Mo_adaptive_sliding_window
+### ASW
 
-Implementation in [code/approaches/b3.py](code/approaches/b3.py) --> Function `b3_adaptive()`
+Implementation in [code/approaches/mo.py](code/approaches/mo.py) --> Function `asw()`
 
-- This approach is a modified approach of Hossein's baselinse approach.
-- `b3` uses a constant stay radius, while `b3_adaptive` adjusts the stay radius based on local spatial variability of the trajectory.
+- This approach is a modified approach of the original sliding window approach.
+- Instead of using a constant stay radius value, `asw()` computes it locally and adjusts the stay radius based on local spatial variability of the trajectory.
 
 ### Riyang_M7_Hidden_Markov_Model
 
