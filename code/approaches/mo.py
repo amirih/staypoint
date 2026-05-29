@@ -2,9 +2,7 @@ import math
 import numpy as np
 
 
-# Copilot + ChatGPT-5.2 implementation
 def haversine_m(lat1, lon1, lat2, lon2):
-    # meters
     R = 6371000.0
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
@@ -12,10 +10,11 @@ def haversine_m(lat1, lon1, lat2, lon2):
     a = math.sin(dphi / 2)**2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-def b3_adaptive(
+
+def asw(
     agent_groups,
     alpha=3.0,                 # scaling factor for adaptive radius
-    dist_thresh_m=50.0,                # minimum allowed radius (meters)
+    r_min=50.0,                # minimum allowed radius (meters)
     time_thresh_min=20.0,
     noise_window=10,           # rolling window size for std estimation
     time_col="time",
@@ -24,12 +23,10 @@ def b3_adaptive(
     debug=False,
 ):
     """
-    Adaptive Radius Stay Detection:
+    Adaptive Sliding Window (ASW) Stay Point Detection:
 
     r_i = max(r_min, alpha * local_spatial_std(i))
 
-    Uses two-pointer scanning similar to b3,
-    but spatial threshold varies per starting point.
     """
 
     agent_id, g = agent_groups
@@ -75,9 +72,7 @@ def b3_adaptive(
     while i < n - 1:
 
         # Adaptive radius for this anchor
-        r_min = dist_thresh_m
         r_i = max(r_min, alpha * local_std[i])
-        
 
         j = i + 1
 
@@ -86,6 +81,7 @@ def b3_adaptive(
                 float(g.at[i, lat_col]), float(g.at[i, lon_col]),
                 float(g.at[j, lat_col]), float(g.at[j, lon_col]),
             )
+
             if d > r_i:
                 deltaT = (
                     g.at[j - 1, time_col]
