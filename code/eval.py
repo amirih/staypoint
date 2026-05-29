@@ -3,7 +3,6 @@
 # Authors: 
 # Hossein Amiri (hossein.amiri@emory.edu)
 # Lance Kennedy (lance.kennedy@emory.edu)
-# Ruochen Kong (ruochen.kong@emory.edu)
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -11,7 +10,7 @@ import numpy as np
 import pandas
 
 
-def get_score(ground_truth_df, calculated_df, r=0.001, t=5, is_f1_only=False):
+def get_score(ground_truth_df, calculated_df, r=0.001, t=5):     
     t = pandas.Timedelta(minutes=t)
     common_columns = ['agent_id','latitude','longitude','arrive_time','leave_time']
     assert all(col in ground_truth_df.columns for col in common_columns), f"Ground truth data missing required columns: {common_columns}"
@@ -25,7 +24,7 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5, is_f1_only=False):
     calc['leave_time'] = pandas.to_datetime(calc['leave_time']).dt.tz_localize(None).astype('datetime64[ns]')
 
     with ProcessPoolExecutor() as ex:
-        if not is_f1_only: overlap_scores = ex.submit(get_spatial_temporal_score, calc, gt).result()
+        overlap_scores = ex.submit(get_spatial_temporal_score, calc, gt).result()
         precision_score = ex.submit(get_precision_score, gt, calc, r, t).result()
         recall_score = ex.submit(get_recall_score, gt, calc, r, t).result()
     f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
@@ -34,51 +33,13 @@ def get_score(ground_truth_df, calculated_df, r=0.001, t=5, is_f1_only=False):
     score = {
         'f1': float(f1),
         'precision': float(precision_score),
-        'recall': float(recall_score)
+        'recall': float(recall_score),
+        'temporal_IoU_score': float(overlap_scores['temporal_IoU']),
+        'spatial_overlap_score': float(overlap_scores['spatial_overlap_score']),
+        'spatial_temporal_overlap_score': float(overlap_scores['spatial_temporal_overlap_score'])
+
     }
-    if not is_f1_only:
-        score['temporal_IoU_score'] = float(overlap_scores['temporal_IoU']),
-        score['spatial_overlap_score'] = float(overlap_scores['spatial_overlap_score']),
-        score['spatial_temporal_overlap_score'] = float(overlap_scores['spatial_temporal_overlap_score'])
-
     return score
-
-
-# For the purpose of evaluating multiple combinations between r and t
-def get_multi_f1_score(ground_truth_df, calculated_df):
-    common_columns = ['agent_id','latitude','longitude','arrive_time','leave_time']
-    assert all(col in ground_truth_df.columns for col in common_columns), f"Ground truth data missing required columns: {common_columns}"
-    assert all(col in calculated_df.columns for col in common_columns), f"Calculated data missing required columns: {common_columns}"
-    gt = ground_truth_df[common_columns].copy()
-    calc = calculated_df[common_columns].copy()
-
-    gt['arrive_time'] = pandas.to_datetime(gt['arrive_time']).dt.tz_localize(None).astype('datetime64[ns]')
-    gt['leave_time'] = pandas.to_datetime(gt['leave_time']).dt.tz_localize(None).astype('datetime64[ns]')
-    calc['arrive_time'] = pandas.to_datetime(calc['arrive_time']).dt.tz_localize(None).astype('datetime64[ns]') # consist the time data type
-    calc['leave_time'] = pandas.to_datetime(calc['leave_time']).dt.tz_localize(None).astype('datetime64[ns]')
-
-    rs = [0.0001, 0.0005, 0.001, 0.01]
-    ts = [1, 5, 10]
-
-    score = {}
-    for r in rs:
-        score[f'r {r}'] = {}
-        for t in ts:
-            print(f'--- r {r} -- t {t}')
-            t_td = pandas.Timedelta(minutes=t)
-            with ProcessPoolExecutor() as ex:
-                precision_score = ex.submit(get_precision_score, gt, calc, r, t_td).result()
-                recall_score = ex.submit(get_recall_score, gt, calc, r, t_td).result()
-            f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
-
-            score[f'r {r}'][f't {t}'] = {
-                'f1': float(f1),
-                'precision': float(precision_score),
-                'recall': float(recall_score),
-            }
-
-    return score
-
 
 def get_recall_score(gt, calc, r, t):
     print("Calculating recall score...")
@@ -134,7 +95,7 @@ def get_spatial_temporal_overlap_chunk(df1_chunk, df2):
             ]
 
         best_IoU = 0
-        best_spatial_score = np.Inf
+        best_spatial_score = 0
         best_spatial_temporal_score = 0
         if not matches.empty:
             for midx, mrow in matches.iterrows():
@@ -152,15 +113,15 @@ def get_spatial_temporal_overlap_chunk(df1_chunk, df2):
                 IoU = m_intersect/m_union
                 if IoU > best_IoU: best_IoU = IoU
 
-                # cal spatial distance
+                # cal spatial score
                 m_lat = mrow['latitude']
                 m_lon = mrow['longitude']
                 spatial_dist = (m_lat - lat) ** 2 + (m_lon - lon) ** 2
                 spatial_dist = spatial_dist ** 0.5
-                if spatial_dist < best_spatial_score: best_spatial_score = spatial_dist
+                spatial_score = max(0, 1 - spatial_dist/0.001)
+                if spatial_score > best_spatial_score: best_spatial_score = spatial_score
 
-                # cal spatial temporal score -- map spatial distance from [0,Inf) to [1,0] and multiply with IoU
-                spatial_score = max(0, 1 - spatial_dist/0.01)
+                # cal spatial temporal score -- simple multiplication
                 spatial_temporal_score = spatial_score * IoU
                 if spatial_temporal_score > best_spatial_temporal_score: best_spatial_temporal_score = spatial_temporal_score
 
@@ -171,19 +132,18 @@ def get_spatial_temporal_overlap_chunk(df1_chunk, df2):
 
 
 def get_spatial_temporal_score(calc, gt, chunk_size=1000):
-    print("Calculating spatial/temporal score...")
     gt = gt.copy()
     calc = calc.copy()
 
     calc['temporal_IoU'] = 0.0
-    calc['spatial_score'] = np.Inf
+    calc['spatial_score'] = 0.0
     calc['spatial_temporal_score'] = 0.0
     chunks = [calc[i:i+chunk_size] for i in range(0, len(calc), chunk_size)]
     with ProcessPoolExecutor() as ex:
         results = list(ex.map(get_spatial_temporal_overlap_chunk, chunks, [gt]*len(chunks) ))
     df1 = pandas.concat(results)
     IoU_score = df1['temporal_IoU'].mean()
-    spatial_score = df1[df1['spatial_score'] != np.Inf]['spatial_score'].mean()
+    spatial_score = df1['spatial_score'].mean()
     spatial_temporal_score = df1['spatial_temporal_score'].mean()
     score = {
         'temporal_IoU': IoU_score,
