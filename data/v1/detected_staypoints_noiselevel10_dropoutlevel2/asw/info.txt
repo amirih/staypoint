@@ -1,0 +1,17 @@
+{
+    "method": "asw",
+    "parameters": {
+        "time_threshold": "5",
+        "dist_threshold": "50",
+        "noise": "0.05",
+        "noise_window": "5"
+    },
+    "evaluation": {
+        "f1": 0.7813482054985555,
+        "precision": 0.8208793045804079,
+        "recall": 0.7454495772167656,
+        "temporal_overlap_score": 0.0,
+        "spatial_overlap_score": 0.0,
+        "spatial_temporal_overlap_score": 0.0
+    }
+}
