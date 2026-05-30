@@ -6,5 +6,7 @@ data/v1/trajectories_*
 *.parquet
 *.json
 !staypoints.parquet
+!evaluation.json
+!eval_multi_rt.json
 !info.json
 !info.txt
