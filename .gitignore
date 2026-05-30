@@ -6,10 +6,13 @@ data/v1/trajectories_*
 *.parquet
 *.json
 !staypoints.parquet
-!evaluation.json
+!staypoint.parquet
 
+!evaluation.json
+!eval_multi_rt.json
 !info.json
 !info.txt
+
 /code/test_eval.ipynb
 /code/eval_sspe.py
 /code/eval_multi_rt.py
