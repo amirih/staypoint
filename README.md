@@ -5,6 +5,14 @@ The datasets are available at [https://osf.io/v8e4g/](https://osf.io/v8e4g/).
 # Project Structure
 
 # Experimental Results
+### Metrics
+- Hyperparameter dependent metrics, calculated with the matched predictions based on two thresholds, *r* the GPS distance and *t* the time difference
+  - Precision
+  - Recall
+  - F1
+- Hyperparameter independent metrics
+  - Temporal IoU. Intersect of prediction and ground truth time divided by their Union
+  - Gps distance. If no match then *Inf*
 
 # Environmental Setup
 
