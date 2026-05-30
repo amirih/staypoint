@@ -62,20 +62,51 @@ def get_multi_f1_score(ground_truth_df, calculated_df):
 
     score = {}
     for r in rs:
-        score[f'r {r}'] = {}
-        for t in ts:
-            print(f'--- r {r} -- t {t}')
-            t_td = pandas.Timedelta(minutes=t)
-            with ProcessPoolExecutor() as ex:
-                precision_score = ex.submit(get_precision_score, gt, calc, r, t_td).result()
-                recall_score = ex.submit(get_recall_score, gt, calc, r, t_td).result()
-            f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
+        t = 5
+        print(f'--- r {r} -- t {t}')
+        t_td = pandas.Timedelta(minutes=t)
+        with ProcessPoolExecutor() as ex:
+            precision_score = ex.submit(get_precision_score, gt, calc, r, t_td).result()
+            recall_score = ex.submit(get_recall_score, gt, calc, r, t_td).result()
+        f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
 
-            score[f'r {r}'][f't {t}'] = {
-                'f1': float(f1),
-                'precision': float(precision_score),
-                'recall': float(recall_score),
-            }
+        score[f'r {r} t {t}'] = {
+            'f1': float(f1),
+            'precision': float(precision_score),
+            'recall': float(recall_score),
+        }
+
+    for t in ts:
+        if t == 5: continue
+        r = 0.001
+        print(f'--- r {r} -- t {t}')
+        t_td = pandas.Timedelta(minutes=t)
+        with ProcessPoolExecutor() as ex:
+            precision_score = ex.submit(get_precision_score, gt, calc, r, t_td).result()
+            recall_score = ex.submit(get_recall_score, gt, calc, r, t_td).result()
+        f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
+
+        score[f'r {r} t {t}'] = {
+            'f1': float(f1),
+            'precision': float(precision_score),
+            'recall': float(recall_score),
+        }
+
+    for t in ts:
+        if t == 5: continue
+        r = 0.0005
+        print(f'--- r {r} -- t {t}')
+        t_td = pandas.Timedelta(minutes=t)
+        with ProcessPoolExecutor() as ex:
+            precision_score = ex.submit(get_precision_score, gt, calc, r, t_td).result()
+            recall_score = ex.submit(get_recall_score, gt, calc, r, t_td).result()
+        f1 = 2*(precision_score * recall_score) / (precision_score + recall_score + 1e-10)  # F1 score
+
+        score[f'r {r} t {t}'] = {
+            'f1': float(f1),
+            'precision': float(precision_score),
+            'recall': float(recall_score),
+        }
 
     return score
 

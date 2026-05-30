@@ -1,0 +1,15 @@
+{
+    "method": "asw",
+    "source_directory": "nl50_dl2/b3_adaptive",
+    "best_json_file": "5_200_0.5.parquet_score.json",
+    "corresponding_parquet_file": "5_200_0.5.parquet",
+    "parameters": null,
+    "evaluation": {
+        "f1": 0.5042058257060801,
+        "precision": 0.5229196223276747,
+        "recall": 0.486785177538597,
+        "temporal_overlap_score": 0.0,
+        "spatial_overlap_score": 0.0,
+        "spatial_temporal_overlap_score": 0.0
+    }
+}
