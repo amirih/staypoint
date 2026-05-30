@@ -11,7 +11,7 @@ The datasets are available at [https://osf.io/v8e4g/](https://osf.io/v8e4g/).
   - Recall
   - F1
 - Hyperparameter independent metrics
-  - Temporal IoU. Intersect of prediction and ground truth time divided by their Union
+  - Temporal IoU. Intersect of prediction and ground truth time durations divided by their Union
   - Gps distance. If no match then *Inf*
 
 # Environmental Setup
