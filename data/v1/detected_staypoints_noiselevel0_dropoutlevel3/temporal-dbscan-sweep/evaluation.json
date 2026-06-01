@@ -1,1 +1,1 @@
-{"f1": 0.4984761201098576, "precision": 0.5736671540924001, "recall": 0.44071167246064397, "temporal_IoU_score": [0.7685889990542907], "spatial_overlap_score": [1.1255962133930044e-05], "spatial_temporal_overlap_score": 0.7678884149635256}
+{"f1": 0.4984761201098576, "precision": 0.5736671540924001, "recall": 0.44071167246064397, "temporal_IoU_score": 0.7685889990542907, "spatial_overlap_score": 1.1255962133930044e-05, "spatial_temporal_overlap_score": 0.7678884149635256}
