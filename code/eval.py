@@ -165,7 +165,7 @@ def get_spatial_temporal_overlap_chunk(df1_chunk, df2):
             ]
 
         best_IoU = 0
-        best_spatial_score = np.Inf
+        best_spatial_score = np.inf
         best_spatial_temporal_score = 0
         if not matches.empty:
             for midx, mrow in matches.iterrows():
@@ -214,7 +214,7 @@ def get_spatial_temporal_score(calc, gt, chunk_size=1000):
         results = list(ex.map(get_spatial_temporal_overlap_chunk, chunks, [gt]*len(chunks) ))
     df1 = pandas.concat(results)
     IoU_score = df1['temporal_IoU'].mean()
-    spatial_score = df1[df1['spatial_score'] != np.Inf]['spatial_score'].mean()
+    spatial_score = df1[df1['spatial_score'] != np.inf]['spatial_score'].mean()
     spatial_temporal_score = df1['spatial_temporal_score'].mean()
     score = {
         'temporal_IoU': IoU_score,
