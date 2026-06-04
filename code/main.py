@@ -43,6 +43,7 @@ def save_df(df, output_path = "data/v1/b2/sp1.csv"):
         raise ValueError("Unsupported file format. Please use .csv or .parquet")
         
 def calculate_stay_points(func=None, input_df=None, output_path = "data/v1/b2/sp2.csv", **kwargs):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if os.path.exists(output_path):
         print(f"Output already exists at {output_path}. Skipping calculation.")
         return
@@ -52,27 +53,30 @@ def calculate_stay_points(func=None, input_df=None, output_path = "data/v1/b2/sp
 def evaluate(calculated_data_path = "data/v1/b2/sp2.csv",ground_truth_path="data/v1/ground_truth.parquet"):
     output_dir = os.path.dirname(calculated_data_path)
     file_name = os.path.basename(calculated_data_path)
-    json_path = f"{file_name}_score.json"
+    # json_path = f"{file_name}_score.json"
+    json_path = f"{output_dir}/evaluation.json"
     if os.path.exists(os.path.join(output_dir, json_path)):
         print(f"Evaluation score already exists at {os.path.join(output_dir, json_path)}. Skipping evaluation.")
         return
     gt_df = get_df(ground_truth_path)
     gt_df.rename(columns={'startTime': 'arrive_time', 'endTime': 'leave_time'}, inplace=True)
     calc_df = get_df(calculated_data_path)
-    score = eval_utils.get_score(gt_df, calc_df)
+    score = eval_utils.get_score(gt_df, calc_df, is_f1_only=True)
     utils.save_json(score, os.path.join(output_dir, json_path))
     print(f"Evaluation Score: {score}")
 
 if __name__ == "__main__":
     funcs=[hsw, sw]
-    time_thresholds = [100, 50, 30, 25, 20, 15, 10, 5]
-    distance_thresholds = [200, 100, 50]
+    time_thresholds =[10] #[100, 50, 30, 25, 20, 15, 10, 5]
+    distance_thresholds =[100] #[200, 100, 50]
     noiselevels = [0, 10, 25, 50]
     dropoutlevels = [0, 1, 2, 3]
+    noise_ignore_counts = [0]
+    noise_ignore_counts.reverse()
     time_thresholds.reverse()
     distance_thresholds.reverse()
-    # noiselevels.reverse()
-    # dropoutlevels.reverse()
+    noiselevels.reverse()
+    dropoutlevels.reverse()
 
 
     data_dir = "data/v1"
@@ -81,22 +85,25 @@ if __name__ == "__main__":
             for dist_thresh in distance_thresholds:
                 for noiselevel in noiselevels:
                     for dropoutlevel in dropoutlevels :
-                        id=f"noiselevel{noiselevel}_dropoutlevel{dropoutlevel}"
-                        input_path=f"{data_dir}/trajectories_{id}.parquet"
-                        input_df = get_df(input_path)
-                        input_df = get_processed_trajectory_df(input_df)
-                        time_thresh_min = time_thresh
-                        dist_thresh_m = dist_thresh
-                        output_path=f"{data_dir}/detected_staypoints_{id}/algorithm_{func.__name__}/time_threshold_{time_thresh_min}_minutes_dist_threshold_{dist_thresh_m}_meters.parquet"
-                        print(f"Approach: {func.__name__}, time_thresh_min: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}")
-                    
-                        try:
-                            calculate_stay_points(func=func,
-                                                input_df=input_df,
-                                                output_path=output_path, 
-                                                time_thresh_min=time_thresh_min,                
-                                                dist_thresh_m=dist_thresh_m)
-                            evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
-                        except Exception as e:
-                            print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}. Error: {e}")
-                       
+                        for noise_ignore_count in noise_ignore_counts:
+                            id=f"noiselevel{noiselevel}_dropoutlevel{dropoutlevel}"
+                            input_path=f"{data_dir}/trajectories_{id}.parquet"
+                            input_df = get_df(input_path)
+                            input_df = get_processed_trajectory_df(input_df)
+                            time_thresh_min = time_thresh
+                            dist_thresh_m = dist_thresh
+                            # output_path=f"{data_dir}/detected_staypoints_{id}/algorithm4_{func.__name__}/time_threshold_{time_thresh_min}_minutes_dist_threshold_{dist_thresh_m}_meters_{noise_ignore_count}.parquet"
+                            output_path=f"{data_dir}/detected_staypoints_{id}/unsupervised_{func.__name__}/staypoints.parquet"
+                            print(f"Approach: {func.__name__}, time_thresh_min: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}, noise_ignore_count: {noise_ignore_count}")
+                        
+                            try:
+                                calculate_stay_points(func=func,
+                                                    input_df=input_df,
+                                                    output_path=output_path, 
+                                                    time_thresh_min=time_thresh_min,                
+                                                    dist_thresh_m=dist_thresh_m,
+                                                    noise_ignore_count=noise_ignore_count)
+                                evaluate(calculated_data_path=output_path, ground_truth_path=f"{data_dir}/ground_truth.parquet")
+                            except Exception as e:
+                                print(f"Error processing approach: {func.__name__}, time_thresh: {time_thresh_min}, dist_thresh: {dist_thresh_m} for noiselevel: {noiselevel}, dropoutlevel: {dropoutlevel}, noise_ignore_count: {noise_ignore_count}. Error: {e}")
+                        

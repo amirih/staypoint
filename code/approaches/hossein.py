@@ -1,7 +1,8 @@
 import math
 
 
-# Hossein + Copilot + ChatGPT-5.2 implementation
+# Author: Hossein Amiri (hossein.amiri@emory.edu)
+# Adapted from original sliding window implementation 
 def haversine_m(lat1, lon1, lat2, lon2):
     # meters
     R = 6371000.0
@@ -18,16 +19,9 @@ def hsw(
     time_col="time",
     lat_col="latitude",
     lon_col="longitude",
+    noise_ignore_count=0,
     debug=False,
 ):
-    """
-    Classic stay point detection (Li et al.-style):
-    - Start at i
-    - Move j forward until distance(i, j) > dist_thresh_m
-    - If time(i, j-1) >= time_thresh -> emit staypoint over i..j-1, set i = j
-      else i += 1
-    Expects g sorted by time.
-    """
     agent_id, g = agent_groups
     if debug:
         print(f"Processing agent_id: {agent_id} with {len(g)} records")
@@ -43,6 +37,7 @@ def hsw(
 
     while i < n - 1:
         j = i + 1
+        # noise_count = noise_ignore_count
 
         while j < n:
             d = haversine_m(
@@ -51,7 +46,11 @@ def hsw(
             )
             
             if d > dist_thresh_m:
-                # candidate window is i .. (j-1)
+                if noise_count > 0:
+                    noise_count -= 1
+                    j += 1
+                    continue
+
                 deltaT = (g.at[j - 1, time_col] - g.at[i, time_col]).total_seconds()
 
                 if deltaT >= time_thresh_s:

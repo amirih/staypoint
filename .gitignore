@@ -19,3 +19,5 @@ data/v1/trajectories_*
 /code/eval_single_algo.py
 /code/eval_all.py
 /code/reformat.py
+data/v1.*
+code/report.ipynb
