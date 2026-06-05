@@ -1,21 +1,22 @@
 """
-Unsupervised hybrid staypoint detection.
+Hybrid staypoint detection — weighted confirmation filter.
 
-Approach: Confirmation filter.
-  Take a primary algorithm's staypoints unchanged (no averaging, no drift),
-  then keep only those confirmed by at least min_confirmations other algorithms.
-  Requiring agreement filters out the primary's false positives, raising precision
-  above what any single algorithm achieves while keeping the primary's exact
-  time/location boundaries so eval matching is not hurt by averaging.
+Primary algorithm: HMM-GEM (best F1 among algorithms with staypoints available).
+Confirmers: all quality-gated algorithms (precision > 0.70), weighted by logit(precision).
+
+A staypoint from the primary is kept when:
+    Σ logit(precision_i) for each confirmer that agrees  ≥  threshold
 
 Usage
 -----
-    python code/hybrid.py                                    # default: trackintel confirmed by >=1
-    python code/hybrid.py --primary trackintel --min_conf 2 # confirmed by >=2 others
-    python code/hybrid.py --sweep --save                    # run all variants and save best
+    python code/hybrid.py                      # threshold sweep, pick best
+    python code/hybrid.py --threshold 1.3      # single run
+    python code/hybrid.py --save --threshold 1.3
 """
 
 import argparse
+import json
+import math
 import os
 import sys
 import time
@@ -23,98 +24,122 @@ import time
 import pandas as pd
 import pyarrow.parquet as pq
 
-# ── paths ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 DATA_DIR     = os.path.join(PROJECT_ROOT, "data", "v1")
 NL25_DIR     = os.path.join(DATA_DIR, "detected_staypoints_noiselevel25_dropoutlevel2")
 
-ALGO_DIRS = {
-    "hsw":        "algorithm_hsw",
-    "hmm_gem":    "algorithm_hmm-gem",
-    "dbscan":     "temporal-dbscan",
-    "trackintel": "Trackintel_Hyperband_Search",
-}
-
 sys.path.insert(0, SCRIPT_DIR)
 import eval as eval_utils
 
+# ── algorithm registry ────────────────────────────────────────────────────────
+# precision values from evaluation.json at r=0.001, t=5 on NL25/DL2
 
-# ── data loading ──────────────────────────────────────────────────────────────
+PRIMARY = {
+    "name": "hmm_gem",
+    "path": os.path.join(NL25_DIR, "algorithm_hmm-gem", "staypoints.parquet"),
+    "precision": 0.7940,
+}
 
-def _strip_tz(series: pd.Series) -> pd.Series:
+# Quality gate: only algorithms with precision > 0.70 and staypoints.parquet
+CONFIRMERS = {
+    "gradient_boosting": {
+        "path": os.path.join(NL25_DIR, "algorithm_gradient_boosting", "staypoints.parquet"),
+        "precision": 0.8407,
+    },
+    "trackintel": {
+        "path": os.path.join(NL25_DIR, "Trackintel_Hyperband_Search", "staypoints.parquet"),
+        "precision": 0.8098,
+    },
+    "hsw": {
+        "path": os.path.join(NL25_DIR, "algorithm_hsw", "staypoints.parquet"),
+        "precision": 0.7850,
+    },
+    "dbscan_sweep": {
+        "path": os.path.join(NL25_DIR, "temporal-dbscan-sweep", "staypoints.parquet"),
+        "precision": 0.7733,
+    },
+    "temporal_dbscan": {
+        "path": os.path.join(NL25_DIR, "temporal-dbscan", "staypoints.parquet"),
+        "precision": 0.7117,
+    },
+}
+
+# excluded: sspe (no staypoints.parquet), asw (P=0.622), centroid_sw (P=0.488)
+
+
+def _logit(p):
+    return math.log(p / (1.0 - p))
+
+
+def _strip_tz(series):
     if pd.api.types.is_datetime64_any_dtype(series):
         if hasattr(series.dt, "tz") and series.dt.tz is not None:
             return series.dt.tz_convert("UTC").dt.tz_localize(None)
     return series
 
 
-def load_algo(name: str) -> pd.DataFrame:
-    path = os.path.join(NL25_DIR, ALGO_DIRS[name], "staypoints.parquet")
+def _load(path):
     df = pq.read_table(path).to_pandas()
     df.columns = [c.strip() for c in df.columns]
     rename = {
+        "startTime": "arrive_time", "endTime": "leave_time",
         "pred_lat": "latitude", "pred_lon": "longitude",
         "pred_start": "arrive_time", "pred_end": "leave_time",
-        "startTime": "arrive_time", "endTime": "leave_time",
     }
     df.rename(columns={k: v for k, v in rename.items() if k in df.columns}, inplace=True)
     df["arrive_time"] = _strip_tz(pd.to_datetime(df["arrive_time"], errors="coerce"))
     df["leave_time"]  = _strip_tz(pd.to_datetime(df["leave_time"],  errors="coerce"))
-    df = df.dropna(subset=["arrive_time", "leave_time", "latitude", "longitude"])
-    return df[["agent_id", "latitude", "longitude", "arrive_time", "leave_time"]].copy()
+    return df.dropna(subset=["arrive_time", "leave_time", "latitude", "longitude"])[
+        ["agent_id", "latitude", "longitude", "arrive_time", "leave_time"]
+    ].copy()
 
 
-# ── confirmation filter ───────────────────────────────────────────────────────
+# ── weighted confirmation filter ──────────────────────────────────────────────
 
-def confirmation_filter(primary_df: pd.DataFrame, others: dict,
-                        min_confirmations: int = 1,
-                        r: float = 0.001, t_min: float = 5.0) -> pd.DataFrame:
+def weighted_confirmation_filter(primary_df, confirmers_loaded, threshold,
+                                  r=0.001, t_min=5.0):
     """
-    Keep only rows of primary_df that are confirmed by at least
-    min_confirmations algorithms in `others`.
-
-    Uses the same spatial (r degrees) and temporal (t_min minutes) matching
-    criteria as eval.py so a confirmation means genuine agreement.
+    For each staypoint in primary_df, sum the logit(precision) weights of
+    every confirmer that has a matching staypoint. Keep if sum >= threshold.
     """
     t = pd.Timedelta(minutes=t_min)
+
+    # pre-group each confirmer by agent for fast lookup
+    by_agent = {
+        name: (info["weight"], df.groupby("agent_id"))
+        for name, (df, info) in confirmers_loaded.items()
+    }
+
     keep = []
-
-    # index each secondary by agent for fast lookup
-    by_agent = {name: df.groupby("agent_id") for name, df in others.items()}
-
     for _, row in primary_df.iterrows():
         agent = row["agent_id"]
         lat, lon = row["latitude"], row["longitude"]
         arr, lv  = row["arrive_time"], row["leave_time"]
-        confirmations = 0
+        score = 0.0
 
-        for name, groups in by_agent.items():
+        for name, (weight, groups) in by_agent.items():
             if agent not in groups.groups:
                 continue
             ag = groups.get_group(agent)
-            match = ag[
+            if not ag[
                 ag["latitude"].between(lat - r, lat + r) &
                 ag["longitude"].between(lon - r, lon + r) &
                 ag["arrive_time"].between(arr - t, arr + t) &
-                ag["leave_time"].between(lv  - t, lv  + t)
-            ]
-            if not match.empty:
-                confirmations += 1
-                if confirmations >= min_confirmations:
-                    break
+                ag["leave_time"].between(lv - t, lv + t)
+            ].empty:
+                score += weight
 
-        if confirmations >= min_confirmations:
+        if score >= threshold:
             keep.append(row)
 
-    if not keep:
-        return pd.DataFrame(columns=primary_df.columns)
-    return pd.DataFrame(keep).reset_index(drop=True)
+    return pd.DataFrame(keep).reset_index(drop=True) if keep else pd.DataFrame(
+        columns=primary_df.columns)
 
 
 # ── evaluation ────────────────────────────────────────────────────────────────
 
-def load_gt() -> pd.DataFrame:
+def load_gt():
     gt = pq.read_table(os.path.join(DATA_DIR, "ground_truth.parquet")).to_pandas()
     gt.rename(columns={"startTime": "arrive_time", "endTime": "leave_time"}, inplace=True)
     gt["arrive_time"] = pd.to_datetime(gt["arrive_time"])
@@ -122,126 +147,104 @@ def load_gt() -> pd.DataFrame:
     return gt
 
 
-def evaluate(result: pd.DataFrame, gt: pd.DataFrame,
-             label: str = "", save_dir: str = None,
-             primary: str = "", min_conf: int = 0, others_used: list = None):
-    score = eval_utils.get_score(gt, result)
-    print(f"  {label:<40}  SP={len(result):>6}  "
-          f"F1={score['f1']:.4f}  P={score['precision']:.4f}  R={score['recall']:.4f}")
-
-    if save_dir:
-        os.makedirs(save_dir, exist_ok=True)
-        result.to_parquet(os.path.join(save_dir, "staypoints.parquet"), index=False)
-        result.to_csv(os.path.join(save_dir, "staypoints.csv"), index=False)
-        _write_info(save_dir, score, primary, min_conf, others_used, len(result), len(gt))
-    return score
+def score_result(result, gt):
+    return eval_utils.get_score(gt, result, is_f1_only=True)
 
 
-def _write_info(out_dir, score, primary, min_conf, others_used, n_pred, n_gt):
-    lines = [
-        "Method: hybrid (confirmation filter)",
-        "",
-        "Parameters:",
-        f"  primary_algorithm={primary}",
-        f"  min_confirmations={min_conf}",
-        f"  confirming_algorithms={', '.join(others_used or [])}",
-        f"  spatial_radius_deg=0.001",
-        f"  temporal_window_min=5",
-        f"  noise_level=25",
-        f"  dropout_level=2",
-        "",
-        "Evaluation:",
-        f"  f1: {score['f1']:.4f}",
-        f"  precision: {score['precision']:.4f}",
-        f"  recall: {score['recall']:.4f}",
-        f"  predicted_staypoints: {n_pred}",
-        f"  ground_truth_staypoints: {n_gt}",
-    ]
-    with open(os.path.join(out_dir, "info.txt"), "w") as f:
-        f.write("\n".join(lines) + "\n")
+# ── main ──────────────────────────────────────────────────────────────────────
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--threshold", type=float, default=None,
+                        help="Logit-weight threshold. Omit to run sweep.")
+    parser.add_argument("--save", action="store_true",
+                        help="Save best result to hybrid_weighted/ folder")
+    args = parser.parse_args()
 
-# ── sweep / single run ────────────────────────────────────────────────────────
-
-def run_single(primary: str, min_conf: int, save: bool, gt: pd.DataFrame,
-               all_loaded: dict):
-    others = {n: df for n, df in all_loaded.items() if n != primary}
-    primary_df = all_loaded[primary]
-
-    t0 = time.time()
-    result = confirmation_filter(primary_df, others, min_confirmations=min_conf)
-    elapsed = time.time() - t0
-
-    label = f"{primary}  confirmed_by>={min_conf}"
-    others_used = list(others.keys())
-
-    save_dir = None
-    if save:
-        folder = f"hybrid_confirm_{primary}_min{min_conf}"
-        save_dir = os.path.join(NL25_DIR, folder)
-
-    score = evaluate(result, gt, label=label, save_dir=save_dir,
-                     primary=primary, min_conf=min_conf, others_used=others_used)
-    return score
-
-
-def run_sweep(save: bool):
     print("\nLoading ground truth...")
     gt = load_gt()
-    print(f"  {len(gt):,} ground truth staypoints\n")
+    print(f"  {len(gt):,} ground truth staypoints")
 
-    print("Loading algorithm outputs...")
-    all_loaded = {}
-    for name in ALGO_DIRS:
-        df = load_algo(name)
-        all_loaded[name] = df
-        print(f"  {name:<12}  {len(df):>6} staypoints")
-    print()
+    print("\nLoading primary (HMM-GEM)...")
+    primary_df = _load(PRIMARY["path"])
+    print(f"  {len(primary_df):,} staypoints")
 
-    print("Running confirmation filter variants...")
-    print(f"  {'Config':<40}  {'SP':>6}  {'F1':>6}  {'P':>6}  {'R':>6}")
-    print(f"  {'-'*64}")
+    print("\nLoading confirmers...")
+    confirmers_loaded = {}
+    for name, info in CONFIRMERS.items():
+        df = _load(info["path"])
+        w  = _logit(info["precision"])
+        confirmers_loaded[name] = (df, {"weight": w, "precision": info["precision"]})
+        print(f"  {name:<20}  {len(df):>6} SP  P={info['precision']:.3f}  "
+              f"logit_w={w:.3f}")
 
-    best_score, best_label = None, ""
-    # only top-2 as primary; lower-quality algos can still act as confirmers
-    TOP_PRIMARIES = ["hsw", "trackintel"]
-    for primary in TOP_PRIMARIES:
-        n_others = len(ALGO_DIRS) - 1   # 3 potential confirmers
-        for min_conf in range(1, n_others + 1):
-            score = run_single(primary, min_conf, save, gt, all_loaded)
-            if best_score is None or score["precision"] > best_score["precision"]:
-                best_score = score
-                best_label = f"{primary} min_conf={min_conf}"
+    total_max_weight = sum(info["weight"] for _, info in confirmers_loaded.values())
+    print(f"\n  Max possible score per staypoint: {total_max_weight:.3f}")
 
-    print(f"\n  Best precision: {best_label}  P={best_score['precision']:.4f}  F1={best_score['f1']:.4f}")
+    # threshold sweep or single run
+    if args.threshold is not None:
+        thresholds = [args.threshold]
+    else:
+        # sweep covering: any 1 weak → 1 strong → 2 medium → GB alone → 2 strong
+        thresholds = [0.90, 1.22, 1.30, 1.45, 1.67, 2.20, 2.75, 3.50]
 
-    # reference baselines
-    print("\nBaseline reference (individual algorithms):")
-    for name, df in all_loaded.items():
-        score = eval_utils.get_score(gt, df)
-        print(f"  {name:<12}  SP={len(df):>6}  "
-              f"F1={score['f1']:.4f}  P={score['precision']:.4f}  R={score['recall']:.4f}")
+    print(f"\n{'Threshold':>10}  {'SPs':>7}  {'F1':>7}  {'Precision':>10}  {'Recall':>8}")
+    print("-" * 52)
+
+    best = None
+    results_by_threshold = {}
+    for T in thresholds:
+        t0 = time.time()
+        result = weighted_confirmation_filter(primary_df, confirmers_loaded, T)
+        elapsed = time.time() - t0
+        if result.empty:
+            print(f"  T={T:>6.2f}  no staypoints produced")
+            continue
+        score = score_result(result, gt)
+        results_by_threshold[T] = (result, score)
+        print(f"  T={T:>6.2f}  {len(result):>7}  "
+              f"{score['f1']:>7.4f}  {score['precision']:>10.4f}  "
+              f"{score['recall']:>8.4f}  ({elapsed:.1f}s)")
+
+        if best is None or score["f1"] > best[1]["f1"]:
+            best = (T, score, result)
+
+    if best:
+        T_best, score_best, result_best = best
+        print(f"\n  Best F1 at threshold={T_best}: "
+              f"F1={score_best['f1']:.4f}  P={score_best['precision']:.4f}  "
+              f"R={score_best['recall']:.4f}")
+
+        if args.save:
+            out_dir = os.path.join(NL25_DIR, f"hybrid_weighted_T{T_best}")
+            os.makedirs(out_dir, exist_ok=True)
+            result_best.to_parquet(os.path.join(out_dir, "staypoints.parquet"), index=False)
+            result_best.to_csv(os.path.join(out_dir, "staypoints.csv"), index=False)
+
+            info_lines = [
+                "Method: hybrid (logit-weighted confirmation filter)",
+                "",
+                "Parameters:",
+                f"  primary=hmm_gem",
+                f"  threshold={T_best}",
+                f"  confirmers (name: precision -> logit_weight):",
+            ]
+            for name, (_, info) in confirmers_loaded.items():
+                info_lines.append(
+                    f"    {name}: {info['precision']:.3f} -> {info['weight']:.3f}")
+            info_lines += [
+                "",
+                "Evaluation (r=0.001, t=5):",
+                f"  f1: {score_best['f1']:.4f}",
+                f"  precision: {score_best['precision']:.4f}",
+                f"  recall: {score_best['recall']:.4f}",
+                f"  predicted_staypoints: {len(result_best)}",
+                f"  ground_truth_staypoints: {len(gt)}",
+            ]
+            with open(os.path.join(out_dir, "info.txt"), "w") as f:
+                f.write("\n".join(info_lines) + "\n")
+            print(f"  Saved to {out_dir}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--sweep",    action="store_true",
-                        help="Run all primary/min_conf combinations")
-    parser.add_argument("--primary",  type=str, default="trackintel",
-                        help="Primary algorithm (default: trackintel)")
-    parser.add_argument("--min_conf", type=int, default=1,
-                        help="Min confirmations from other algorithms (default: 1)")
-    parser.add_argument("--save",     action="store_true",
-                        help="Save parquet/csv/info.txt for each run")
-    args = parser.parse_args()
-
-    if args.sweep:
-        run_sweep(save=args.save)
-    else:
-        gt = load_gt()
-        all_loaded = {n: load_algo(n) for n in ALGO_DIRS}
-        print(f"\nGround truth: {len(gt):,} staypoints")
-        for n, df in all_loaded.items():
-            print(f"  Loaded {n:<12}  {len(df):>6} staypoints")
-        print()
-        run_single(args.primary, args.min_conf, args.save, gt, all_loaded)
+    main()

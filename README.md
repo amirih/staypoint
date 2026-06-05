@@ -5,6 +5,14 @@ The datasets are available at [https://osf.io/v8e4g/](https://osf.io/v8e4g/).
 # Project Structure
 
 # Experimental Results
+### Metrics
+- Hyperparameter dependent metrics, calculated with the matched predictions based on two thresholds, *r* the GPS distance and *t* the time difference
+  - Precision
+  - Recall
+  - F1
+- Hyperparameter independent metrics
+  - Temporal IoU. Intersect of prediction and ground truth time durations divided by their Union
+  - Gps distance. If no match then *Inf*
 
 # Environmental Setup
 
@@ -43,12 +51,12 @@ A supervised approach that serves as a performance ceiling. We engineer 23 featu
 Implementation: [code/approaches/hsw.py](code/approaches/hsw.py)
 
 
-### Mo_adaptive_sliding_window
+### ASW
 
-Implementation in [code/approaches/b3.py](code/approaches/b3.py) --> Function `b3_adaptive()`
+Implementation in [code/approaches/mo.py](code/approaches/mo.py) --> Function `asw()`
 
-- This approach is a modified approach of Hossein's baselinse approach.
-- `b3` uses a constant stay radius, while `b3_adaptive` adjusts the stay radius based on local spatial variability of the trajectory.
+- This approach is a modified approach of the original sliding window approach.
+- Instead of using a constant stay radius value, `asw()` computes it locally and adjusts the stay radius based on local spatial variability of the trajectory.
 
 ### Riyang_M7_Hidden_Markov_Model
 
@@ -78,3 +86,28 @@ Implementation in [code/approaches/alex.py](code/approaches/alex.py)
 ### Baseline_Track_Intel
 
 Implementation in [code/approaches/b1.py](code/approaches/b1.py)
+
+### Hybrid Confirmation Filter (Steve)
+
+Implementation in [code/hybrid.py](code/hybrid.py). Run all 16 noise/dropout combinations with [code/run_three_hybrids.py](code/run_three_hybrids.py).
+
+An unsupervised ensemble method that takes a primary algorithm's staypoints and keeps only those confirmed by at least one other algorithm within ±0.001° and ±5 minutes. Confirmation is logit-weighted by each confirmer's precision — higher-precision algorithms contribute more evidence. Threshold T=0.90 (any single confirmation suffices) was validated across all noise/dropout levels.
+
+Three variants:
+
+| Variant | Primary | Confirmers | Output folder |
+|---------|---------|-----------|---------------|
+| Unsupervised | HMM-GEM | HSW, T-DBSCAN | `hybrid_unsupervised/` |
+| Optimized | SSPE | HMM-GEM, Trackintel, HSW, T-DBSCAN sweep, ASW | `hybrid_optimized/` |
+| Fully Supervised | SSPE | same + Gradient Boosting | `hybrid_supervised/` |
+
+Results at noise=25, dropout=2 (default eval r=0.001, t=5):
+
+| Variant | F1 | Precision | Recall |
+|---------|-----|-----------|--------|
+| hybrid_unsupervised | 0.7773 | 0.8461 | 0.7188 |
+| hybrid_optimized | **0.7946** | **0.8396** | 0.7542 |
+| hybrid_supervised | 0.7946 | 0.8396 | 0.7543 |
+| SSPE (best individual) | 0.7935 | 0.8348 | 0.7561 |
+
+hybrid_optimized beats SSPE at every noise/dropout level tested. The gain is largest under heavy noise (NL=50): +0.002 to +0.003 F1 over SSPE, and +0.04 to +0.10 over HMM-GEM alone.

@@ -1,0 +1,15 @@
+Method: hybrid_unsupervised (logit-weighted confirmation filter)
+
+Parameters:
+  primary=algorithm_hmm-gem
+  threshold=0.9
+  confirmers (name: precision -> logit_weight):
+    algorithm_hsw: 0.785 -> 1.295
+    temporal-dbscan: 0.712 -> 0.904
+
+Evaluation (r=0.001, t=5):
+  f1: 0.8504
+  precision: 0.9240
+  recall: 0.7876
+  predicted_staypoints: 56149
+  ground_truth_staypoints: 65873
