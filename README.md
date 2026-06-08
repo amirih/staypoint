@@ -115,9 +115,9 @@ Implementation in [code/approaches/m7.py](code/approaches/m7.py)
 
 An unsupervised approach that models each trajectory point as either "stopped" or "moving" using a 2-state HMM. The observation at each point is the haversine displacement to the next point, modeled with Gaussian emission distributions for each state. We decode the optimal state sequence via the Viterbi algorithm and merge consecutive "stopped" segments into staypoints (filtered by a minimum duration threshold).
 
-### Lance_Temporal_DBSCAN
+### Temporal_DBSCAN
 
-Implementation in [code/approaches/lance.py](code/approaches/lance.py)
+Implementation in [code/approaches/temporal_dbscan.py](code/approaches/temporal_dbscan.py)
 
 ### Baseline_Similarity_Paper.py
 
@@ -136,4 +136,8 @@ Implementation in [code/approaches/alex.py](code/approaches/alex.py)
 
 ### Baseline_Track_Intel
 
-Implementation in [code/approaches/b1.py](code/approaches/b1.py)
+Implementation in [code/approaches/ti_baseline.py](code/approaches/ti_baseline.py)
+
+### Trackintel_Dropout_Filter
+
+Implementation in [code/approaches/ti_dropout_filter.py](code/approaches/ti_dropout_filter.py)

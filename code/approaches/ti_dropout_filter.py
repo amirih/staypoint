@@ -6,7 +6,39 @@ import geopandas as gpd
 from trackintel import Positionfixes, Staypoints
 from trackintel.preprocessing import generate_locations, generate_staypoints, generate_triplegs, merge_staypoints
 
-def ti_POL_ATL_data(traj, time_col='time', lon_col='n_lon', lat_col='n_lat'):
+# Set dropout threshold (should match min staypoint duration)
+dropout_threshold = pd.Timedelta(minutes=5)
+# Set time difference threshold between dropout/staypoint start here
+diff_threshold = pd.Timedelta(minutes=1)
+
+def filter_dropouts(traj, initial_sps, traj_time_col='tracked_at'):
+
+    # Identify dropouts over dropout threshold
+    traj['t_delta'] = traj[traj_time_col].diff(1)
+    traj['t_delta'] = traj['t_delta'].shift(-1)
+
+    dropouts = traj[traj['t_delta'] >= dropout_threshold].reset_index(drop=True)
+    # timezone = 'UTC+08:00'
+    # dropouts['tracked_at']=dropouts['tracked_at'].dt.tz_convert(timezone)
+
+    # This function call identifies the spurious staypoints
+    merged = pd.merge_asof(
+        initial_sps,
+        dropouts,
+        left_on="started_at",
+        right_on=traj_time_col,
+        tolerance=diff_threshold,
+        direction="forward"
+    )
+
+    # And here we remove these staypoints
+    indices_to_drop = initial_sps.index[merged[traj_time_col].notna()]
+    non_dropout_sps = initial_sps.drop(indices_to_drop).reset_index(drop=True)
+
+    return non_dropout_sps
+
+
+def ti_dropout_filter(traj, time_col='time', lon_col='n_lon', lat_col='n_lat'):
     traj = traj.sort_values(by=[time_col]).reset_index(drop=True)
 
     if lat_col != 'latitude' and 'latitude' in traj.columns:
@@ -45,6 +77,9 @@ def ti_POL_ATL_data(traj, time_col='time', lon_col='n_lon', lat_col='n_lat'):
 
     # Merges staypoints that are at the same location, consecutive, and within some time gap of each other
     sps = merge_staypoints(sps, tpls, max_time_gap=pd.Timedelta(minutes=25), agg={"geometry":"last"})
+
+    # Add dropout filter
+    sps = filter_dropouts(traj, sps)
     
     return sps
 
@@ -56,10 +91,9 @@ if __name__ == "__main__":
     all_sps = []
 
     for name, group in trajectories.groupby('agent_id'):
-        agent_sps = ti_POL_ATL_data(group)
+        agent_sps = ti_dropout_filter(group)
         if agent_sps is not None:
             all_sps.append(agent_sps)
 
     all_sps = pd.concat(all_sps, ignore_index=True)
-    all_sps.to_csv('POL-ATL-data/attempts/ti_50m_5min_25g.csv')
-    
+    all_sps.to_csv('POL-ATL-data/attempts/ti_dropout_filter.csv')
