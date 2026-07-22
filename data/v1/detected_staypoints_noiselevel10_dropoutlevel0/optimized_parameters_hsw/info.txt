@@ -1,0 +1,10 @@
+Runtime: 4 minutes
+
+Parameters: 
+time_threshold=10
+dist_threshold=100
+
+Evaluation:
+f1: 0.971192030127595
+precision: 0.9790805307004011
+recall: 0.9634296297420795

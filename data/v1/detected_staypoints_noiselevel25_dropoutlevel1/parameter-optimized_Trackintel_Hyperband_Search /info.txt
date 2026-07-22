@@ -1,0 +1,13 @@
+{
+  "noise_level": 25,
+  "drop_level": 1,
+  "dist": 135.4,
+  "t": 15.5,
+  "gap": 180.0,
+  "precision": 0.9074,
+  "recall": 0.8717,
+  "f1": 0.8892,
+  "f2": 0.8786,
+  "predicted_staypoints": 63280,
+  "ground_truth_staypoints": 65873
+}

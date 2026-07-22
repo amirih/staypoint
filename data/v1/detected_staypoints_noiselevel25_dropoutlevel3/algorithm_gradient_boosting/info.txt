@@ -1,0 +1,42 @@
+algorithm_name: Gradient Boosting
+method_id: M8
+data_condition: noiselevel=25, dropoutlevel=3
+input_dataset: trajectories_noiselevel25_dropoutlevel3.parquet
+prediction_file: staypoints.parquet
+source_prediction: /users/rbao5/StayPoint-Detection/data/POL-noised-results/m1_m8_fixedparams_v1gt/predictions/trajectories_noiselevel25_dropoutlevel3/m8.parquet
+source_metrics: /users/rbao5/StayPoint-Detection/data/POL-noised-results/m1_m8_fixedparams_v1gt/metrics/trajectories_noiselevel25_dropoutlevel3/m8.json
+run_time: 102.321 seconds
+wall_time: 105.426 seconds
+status: ok
+
+Parameters:
+model=HistGradientBoostingClassifier
+max_iter=200
+max_depth=5
+learning_rate=0.1
+random_state=42
+min_duration_seconds=300
+train_agent_fraction=0.8
+train_agents=0-399
+test_agents=400-499
+features=disp_prev, disp_next, hour, rolling latitude/longitude std, rolling displacement stats, rolling centroid distances
+
+Primary evaluation:
+scope=primary_test_agents
+agent_range=400-499
+radius_deg=0.001
+time_window_min=5
+precision=0.547656
+recall=0.411878
+f1=0.470160
+f2=0.433366
+n_gt=13016
+n_detected=9789
+tp_gt=5361
+fp=4428
+fn=7655
+
+Notes:
+- Supervised method trained on agents 0-399 and predicted only on held-out agents 400-499.
+- Prediction file contains held-out test-agent staypoints only.
+- Metrics below are computed on the same held-out test-agent scope.

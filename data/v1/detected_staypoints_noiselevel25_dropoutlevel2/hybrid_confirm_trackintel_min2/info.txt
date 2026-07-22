@@ -1,0 +1,17 @@
+Method: hybrid (confirmation filter)
+
+Parameters:
+  primary_algorithm=trackintel
+  min_confirmations=2
+  confirming_algorithms=hsw, hmm_gem, dbscan
+  spatial_radius_deg=0.001
+  temporal_window_min=5
+  noise_level=25
+  dropout_level=2
+
+Evaluation:
+  f1: 0.7843
+  precision: 0.9216
+  recall: 0.6826
+  predicted_staypoints: 48786
+  ground_truth_staypoints: 65873

@@ -1,0 +1,50 @@
+algorithm_name: Centroid Sliding Window
+method_id: M4
+data_condition: noiselevel=25, dropoutlevel=3
+input_dataset: trajectories_noiselevel25_dropoutlevel3.parquet
+prediction_file: staypoints.parquet
+source_prediction: /users/rbao5/StayPoint-Detection/data/POL-noised-results/m1_m8_fixedparams_v1gt/predictions/trajectories_noiselevel25_dropoutlevel3/m4.parquet
+source_metrics: /users/rbao5/StayPoint-Detection/data/POL-noised-results/m1_m8_fixedparams_v1gt/metrics/trajectories_noiselevel25_dropoutlevel3/m4.json
+run_time: 295.138 seconds
+wall_time: 299.025 seconds
+status: ok
+
+Parameters:
+dist_threshold_meters=75
+time_threshold_seconds=300
+workers=16
+
+Primary evaluation:
+scope=primary_test_agents
+agent_range=400-499
+radius_deg=0.001
+time_window_min=5
+precision=0.404831
+recall=0.363092
+f1=0.382827
+f2=0.370736
+n_gt=13016
+n_detected=11674
+tp_gt=4726
+fp=6948
+fn=8290
+
+Full-agent evaluation:
+scope=full_agents
+agent_range=0-499
+radius_deg=0.001
+time_window_min=5
+precision=0.402809
+recall=0.363093
+f1=0.381921
+f2=0.370397
+n_gt=65873
+n_detected=59378
+tp_gt=23918
+fp=35460
+fn=41955
+
+Notes:
+- Prediction file contains detected staypoints for all agents.
+- Primary metrics below are computed on held-out test agents for consistency with the supervised benchmark split.
+- Full-agent metrics are included separately when available.
