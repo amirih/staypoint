@@ -14,6 +14,15 @@ The datasets are available at [https://osf.io/v8e4g/](https://osf.io/v8e4g/).
   - Temporal IoU. Intersect of prediction and ground truth time durations divided by their Union
   - Gps distance. If no match then *Inf*
 
+### Precision and Recall results using parameters in paper
+#### Evaluated with r = 0.001, t = 5
+##### Precision Scores
+<img width="1143" height="344" alt="precision" src="https://github.com/user-attachments/assets/6cb29a57-9bda-424f-b5df-5a24ae898dc4" />
+
+##### Recall Scores
+<img width="1143" height="346" alt="recall" src="https://github.com/user-attachments/assets/26866406-64b9-4c44-a203-83640371e9e7" />
+
+
 ### Results on noise level 25 dropout level 2
 *Evaluaiton results on difference noise levels and dropout levels could be find in folder [data/v1/evaluation_summary](data/v1/evaluation_summary)*
 
