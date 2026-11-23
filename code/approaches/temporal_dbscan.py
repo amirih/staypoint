@@ -2,17 +2,29 @@
 import pandas as pd
 import numpy as np
 from sklearn.cluster import DBSCAN
-from sklearn.cluster import OPTICS
-from sklearn import metrics
-import matplotlib.pyplot as plt
-import pyarrow.parquet as pq
+from pyproj import Transformer
+from pyproj import CRS
+
+def get_utm_crs(lat, lon):
+    """
+    Return the UTM coordinate reference system appropriate
+    for a given latitude and longitude.
+    """
+    zone = int((lon + 180) // 6) + 1
+
+    if lat >= 0:
+        epsg = 32600 + zone  # Northern hemisphere
+    else:
+        epsg = 32700 + zone  # Southern hemisphere
+
+    return CRS.from_epsg(epsg)
 
 def min_max_normalize(col, new_min=0, new_max=1):
     old_min = col.min()
     old_max = col.max()
     return (((col - old_min) / (old_max - old_min)) * (new_max - new_min)) + new_min
 
-def run_clustering_pipeline(traj, sps, eps=0.0007, min_sp_time=5, avg_freq=60, time_col='time', lat='latitude', lon='longitude'):
+def run_clustering_pipeline(traj, sps, eps=0.0007, min_sp_time=5, avg_freq=60, time_col='time', lat='latitude', lon='longitude', utm_zone="detect"):
     # Find approximately how many points we want as minimum for cluster
     # Will be harder with real-world data and inconsistent frequencies
     min_sp_time = pd.Timedelta(minutes=min_sp_time)
@@ -20,6 +32,14 @@ def run_clustering_pipeline(traj, sps, eps=0.0007, min_sp_time=5, avg_freq=60, t
 
     # For sanity
     traj = traj.sort_values(by=time_col).reset_index(drop=True)
+
+    # Need projection to flattened map and back to make dists easier to handle
+    if utm_zone == "detect":
+        detected_zone = get_utm_crs(traj[lat].iloc[0], traj[lon].iloc[0])
+        to_utm = Transformer.from_crs("EPSG:4326", detected_zone, always_xy=True)
+    else:
+        to_utm = Transformer.from_crs("EPSG:4326", utm_zone, always_xy=True)
+    traj['flat_lon'], traj['flat_lat'] = to_utm.transform(traj[lon].values, traj[lat].values)
 
     # Add GT sps IDs to traj
     if sps is not None:
@@ -33,8 +53,8 @@ def run_clustering_pipeline(traj, sps, eps=0.0007, min_sp_time=5, avg_freq=60, t
 
     # Normalize columns to cluster
     traj['norm_time'] = min_max_normalize(traj.norm_time)
-    traj['norm_lat'] = min_max_normalize(traj[lat])
-    traj['norm_lon'] = min_max_normalize(traj[lon])
+    traj['norm_lat'] = min_max_normalize(traj['flat_lat'])
+    traj['norm_lon'] = min_max_normalize(traj['flat_lon'])
 
     # CLustering
     to_cluster = traj[['norm_time', 'norm_lat', 'norm_lon']]
@@ -91,72 +111,39 @@ def run_clustering_pipeline(traj, sps, eps=0.0007, min_sp_time=5, avg_freq=60, t
     return traj
 
 
-# ===== POL ATL DATA =====
-noised_trajs = pd.read_parquet('POL-ATL-data/noised_trajectory.parquet')
-all_sps = pd.read_parquet('POL-ATL-data/naive_sps.parquet')
+# ===== ES DATA =====
+def run_es(eps=0.005, min_time=5, out_file='es/experiment_data/attempts/temporal-dbscan.parquet'):
+    trajs = pd.read_parquet('es/experiment_data/trajectories.parquet')
+    all_sps = pd.read_parquet('es/experiment_data/gt_staypoints.parquet')
+    all_sps.rename(columns={'start_time':'startTime', 'end_time':'endTime'}, inplace=True)
 
-pred_sps = pd.DataFrame(columns=['agent_id',
-                                 'startTime',
-                                 'endTime',
-                                 'mean_lat',
-                                 'mean_lon',
-                                 'med_lat',
-                                 'med_lon'])
+    pred_sps = pd.DataFrame(columns=['agent_id',
+                                    'startTime',
+                                    'endTime',
+                                    'mean_lat',
+                                    'mean_lon',
+                                    'med_lat',
+                                    'med_lon'])
 
-for agent_id in noised_trajs.agent_id.unique():
-    sample_traj = noised_trajs[noised_trajs.agent_id == agent_id]
-    sample_sps = all_sps[all_sps.agent_id == agent_id]
-    sample_traj = run_clustering_pipeline(sample_traj, sample_sps, eps=0.005, time_col='time', lat='n_lat', lon='n_lon')
+    for agent_id in trajs.user.unique():
+        sample_traj = trajs[trajs.user == agent_id]
+        sample_sps = all_sps[all_sps.user == agent_id]
+        sample_traj = run_clustering_pipeline(sample_traj, sample_sps, eps=eps, min_sp_time=min_time, time_col='time', lat='latitude', lon='longitude')
 
-    # ===== Fill predicted SPS dataframe =====
-    for pred, sp in sample_traj.groupby('prediction'):
-        if pred == -1:
-            continue
-        new_sp = [agent_id, sp.time.min(), sp.time.max(), sp.n_lat.mean(), sp.n_lon.mean(), sp.n_lat.median(), sp.n_lon.median()]
-        pred_sps.loc[len(pred_sps)] = new_sp
+        # ===== Fill predicted SPS dataframe =====
+        for pred, sp in sample_traj.groupby('prediction'):
+            if pred == -1:
+                continue
+            new_sp = [agent_id, sp.time.min(), sp.time.max(), sp.latitude.mean(), sp.longitude.mean(), sp.latitude.median(), sp.longitude.median()]
+            pred_sps.loc[len(pred_sps)] = new_sp
 
-pred_sps.to_parquet('POL-ATL-data/attempts/temporal-dbscan.parquet')
+    pred_sps.to_parquet(out_file)
 
-# ===== SIM 1 DATA =====
-reader = pq.ParquetFile('sim1/data.zstd.parquet')
-batch_size = 6048000
 
-pred_sps = pd.DataFrame(columns=['agent_id',
-                                 'startTime',
-                                 'endTime',
-                                 'mean_lat',
-                                 'mean_lon',
-                                 'med_lat',
-                                 'med_lon'])
+if __name__ == '__main__':
 
-prev_df = None # Handling borders
-
-for batch in reader.iter_batches(batch_size=batch_size):
-    df = batch.to_pandas()
-
-    df = pd.concat([prev_df, df], ignore_index=True)
-
-    prev_df = df[df.agent == df.agent.iloc[-1]]
-    df = df[df.agent != df.agent.iloc[-1]].reset_index(drop=True)
-
-    for name, group in df.groupby('agent'):
-        agent_sps = run_clustering_pipeline(group, None, eps=0.005, avg_freq=10, time_col='timestamp')
-        if agent_sps is not None:
-            # ===== Fill predicted SPS dataframe =====
-            for pred, sp in agent_sps.groupby('prediction'):
-                if pred == -1:
-                    continue
-                new_sp = [name, sp.timestamp.min(), sp.timestamp.max(), sp.latitude.mean(), sp.longitude.mean(), sp.latitude.median(), sp.longitude.median()]
-                pred_sps.loc[len(pred_sps)] = new_sp
-
-# Add last agent
-agent_sps = run_clustering_pipeline(prev_df, None, eps=0.005, time_col='timestamp')
-if agent_sps is not None:
-    # ===== Fill predicted SPS dataframe =====
-    for pred, sp in agent_sps.groupby('prediction'):
-        if pred == -1:
-            continue
-        new_sp = [sp.agent.iloc[0], sp.timestamp.min(), sp.timestamp.max(), sp.latitude.mean(), sp.longitude.mean(), sp.latitude.median(), sp.longitude.median()]
-        pred_sps.loc[len(pred_sps)] = new_sp
-
-pred_sps.to_parquet('sim1/temporal-dbscan.parquet')
+    e = 0.003
+    m = 5
+    run_es(eps=e,
+        min_time=m,
+        out_file=f'es/experiment_data/attempts/temporal-dbscan_e{e:.3f}_m{m}.parquet')
